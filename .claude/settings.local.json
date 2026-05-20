@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel --prod)",
+      "Bash(curl -s https://sales-tracker-one-lyart.vercel.app)",
+      "Bash(awk '/<\\\\/script>/{print NR\": \"$0}' /Users/joe/Desktop/pwt/index.html)",
+      "Bash(vercel env *)"
+    ]
+  }
+}
