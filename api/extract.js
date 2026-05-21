@@ -75,6 +75,7 @@ If a field is not mentioned, return "".`;
     const parsed = JSON.parse(raw);
     return res.status(200).json(parsed);
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'Extraction failed' });
+    console.error('extract api error:', err);
+    return res.status(500).json({ error: 'Extraction failed' });
   }
 }

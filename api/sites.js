@@ -1,5 +1,5 @@
-import { getSql, ensureSchema } from '../lib/db.js';
-import { isAuthed } from '../lib/auth.js';
+import { getSupabase } from '../lib/db.js';
+import { getSession } from '../lib/auth.js';
 
 export const config = { maxDuration: 30 };
 
@@ -16,26 +16,41 @@ function rowToSite(r) {
     nextAction: r.next_action || '',
     dueDate: r.due_date || '',
     notes: r.notes || '',
+    createdAt: r.created_at || '',
+    engineerId: r.engineer_id || '',
+    engineerName: r.engineers?.full_name || '',
   };
 }
 
 export default async function handler(req, res) {
-  if (!isAuthed(req)) {
+  const session = await getSession(req);
+  if (!session) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  const { engineerId, role } = session;
+  const isAdmin = role === 'admin';
+
   try {
-    await ensureSchema();
-    const sql = getSql();
+    const supabase = getSupabase();
 
     if (req.method === 'GET') {
-      const rows = await sql`
-        SELECT id, name, contact, phone, equipment, specs, location,
-               status, next_action, due_date, notes
-        FROM sites
-        ORDER BY updated_at DESC
-      `;
-      return res.status(200).json({ sites: rows.map(rowToSite) });
+      let query = supabase
+        .from('sites')
+        .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)')
+        .order('updated_at', { ascending: false });
+
+      if (!isAdmin) {
+        query = query.eq('engineer_id', engineerId);
+      } else {
+        const url = new URL(req.url, 'http://x');
+        const filterEngId = url.searchParams.get('engineerId');
+        if (filterEngId) query = query.eq('engineer_id', filterEngId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return res.status(200).json({ sites: (data || []).map(rowToSite) });
     }
 
     if (req.method === 'POST') {
@@ -43,30 +58,41 @@ export default async function handler(req, res) {
       const s = body?.site;
       if (!s?.id) return res.status(400).json({ error: 'Missing site.id' });
 
-      await sql`
-        INSERT INTO sites (
-          id, name, contact, phone, equipment, specs, location,
-          status, next_action, due_date, notes, updated_at
-        )
-        VALUES (
-          ${s.id}, ${s.name || ''}, ${s.contact || ''}, ${s.phone || ''},
-          ${s.equipment || ''}, ${s.specs || ''}, ${s.location || ''},
-          ${s.status || ''}, ${s.nextAction || ''}, ${s.dueDate || ''},
-          ${s.notes || ''}, now()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          contact = EXCLUDED.contact,
-          phone = EXCLUDED.phone,
-          equipment = EXCLUDED.equipment,
-          specs = EXCLUDED.specs,
-          location = EXCLUDED.location,
-          status = EXCLUDED.status,
-          next_action = EXCLUDED.next_action,
-          due_date = EXCLUDED.due_date,
-          notes = EXCLUDED.notes,
-          updated_at = now()
-      `;
+      // Validate status if provided
+      const VALID_STATUSES = ['', 'Potential Prospect', 'Qualified Prospect', 'Interested Prospect', 'Hot Prospect', 'Hot Lead', 'Follow Up', 'Active', 'Pending', 'Closed Won', 'Lost'];
+      if (s.status && !VALID_STATUSES.includes(s.status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      // Check ownership on update
+      const { data: existing } = await supabase
+        .from('sites')
+        .select('engineer_id')
+        .eq('id', s.id)
+        .single();
+
+      if (existing && existing.engineer_id !== engineerId && !isAdmin) {
+        return res.status(403).json({ error: 'Not your site' });
+      }
+
+      const { error } = await supabase
+        .from('sites')
+        .upsert({
+          id: s.id,
+          name: s.name || '',
+          contact: s.contact || '',
+          phone: s.phone || '',
+          equipment: s.equipment || '',
+          specs: s.specs || '',
+          location: s.location || '',
+          status: s.status || '',
+          next_action: s.nextAction || '',
+          due_date: s.dueDate || '',
+          notes: s.notes || '',
+          engineer_id: existing ? existing.engineer_id : engineerId,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+      if (error) throw error;
       return res.status(200).json({ ok: true });
     }
 
@@ -74,13 +100,27 @@ export default async function handler(req, res) {
       const url = new URL(req.url, 'http://x');
       const id = url.searchParams.get('id');
       if (!id) return res.status(400).json({ error: 'Missing id' });
-      await sql`DELETE FROM sites WHERE id = ${id}`;
+
+      // Check ownership
+      if (!isAdmin) {
+        const { data: existing } = await supabase
+          .from('sites')
+          .select('engineer_id')
+          .eq('id', id)
+          .single();
+        if (existing && existing.engineer_id !== engineerId) {
+          return res.status(403).json({ error: 'Not your site' });
+        }
+      }
+
+      const { error } = await supabase.from('sites').delete().eq('id', id);
+      if (error) throw error;
       return res.status(200).json({ ok: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('sites api error:', err);
-    return res.status(500).json({ error: err.message || 'Server error' });
+    return res.status(500).json({ error: 'Server error' });
   }
 }

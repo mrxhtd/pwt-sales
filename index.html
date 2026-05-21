@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0c0e0f">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <script>
   // Set theme before first paint to avoid flash
   (function() {
@@ -207,7 +210,7 @@
   /* STATS ROW */
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 24px;
   }
@@ -256,6 +259,124 @@
     color: var(--accent);
     font-weight: 800;
     font-size: 15px;
+  }
+
+  /* Light mode: dark header so white logo text stays visible */
+  [data-theme="light"] header {
+    background: #0d1526;
+    border-bottom-color: #1c2d47;
+  }
+  [data-theme="light"] header .logo-text { color: #e8eef8; }
+  [data-theme="light"] header .logo-text span { color: #3b82f6; }
+  [data-theme="light"] header .btn-ghost {
+    color: #7a93b4;
+    border-color: #1c2d47;
+  }
+  [data-theme="light"] header .btn-ghost:hover {
+    color: #e8eef8;
+    border-color: #253c5e;
+    background: #111d30;
+  }
+  [data-theme="light"] header .btn-label { color: #7a93b4; }
+  [data-theme="light"] .name-banner {
+    background: #111d30;
+    border-bottom-color: #1c2d47;
+    color: #7a93b4;
+  }
+  [data-theme="light"] .name-banner span { color: #3b82f6; }
+
+  /* SECTIONS */
+  #clientsSection, #engineersSection {
+    padding: 28px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* TAB BAR */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+  }
+  .tab {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  [data-theme="light"] .tab-bar {
+    background: #111d30;
+    border-bottom-color: #1c2d47;
+  }
+  [data-theme="light"] .tab { color: #7a93b4; }
+  [data-theme="light"] .tab:hover { color: #e8eef8; }
+  [data-theme="light"] .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+  /* CATEGORY CHIPS */
+  .cat-chip {
+    display: inline-block;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    margin: 1px 2px;
+  }
+  .cat-boilers { background: var(--red-dim); color: var(--red); }
+  .cat-cooling_towers { background: var(--blue-dim); color: var(--blue); }
+  .cat-chillers { background: var(--purple-dim); color: var(--purple); }
+  .cat-swimming_pools { background: rgba(6,182,212,0.14); color: var(--accent-2); }
+
+  /* PRODUCT STATUS BADGES */
+  .badge-active { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .badge-stock { background: rgba(245,158,11,0.15); color: #f59e0b; }
+
+  /* SKELETON LOADING */
+  @keyframes skel-shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .skel {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+    background-size: 800px 100%;
+    animation: skel-shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius);
+  }
+  .skel-stat {
+    height: 82px;
+    border-radius: var(--radius-lg);
+  }
+  .skel-row {
+    height: 72px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+  }
+  .skel-pill {
+    display: inline-block;
+    width: 72px;
+    height: 30px;
+    border-radius: 99px;
+    margin-right: 6px;
+  }
+  .skel-search {
+    height: 44px;
+    width: 100%;
+    border-radius: var(--radius);
   }
 
   /* CONTROLS */
@@ -459,6 +580,18 @@
   }
   .icon-btn:hover { background: var(--surface); color: var(--text); }
   .icon-btn.delete:hover { background: var(--red-dim); color: var(--red); border-color: rgba(255,77,106,0.3); }
+
+  .row-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .row-btn:hover { background: var(--surface); color: var(--accent); border-color: var(--accent); }
 
   /* EMPTY STATE */
   .empty-state {
@@ -864,6 +997,9 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .login-card {
     width: 100%;
@@ -888,7 +1024,8 @@
     margin-bottom: 22px;
   }
   .login-card form { display: flex; flex-direction: column; gap: 10px; }
-  .login-card input[type="password"] {
+  .login-card input[type="password"],
+  .login-card input[type="text"] {
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -899,15 +1036,43 @@
     font-size: 16px;
     outline: none;
     text-align: center;
-    letter-spacing: 2px;
   }
-  .login-card input[type="password"]:focus { border-color: var(--accent); }
+  .login-card input[type="password"]:not(:placeholder-shown) { letter-spacing: 2px; }
+  .login-card input[type="password"]:focus,
+  .login-card input[type="text"]:focus { border-color: var(--accent); }
   .login-card .btn { width: 100%; justify-content: center; padding: 12px; }
   .login-error {
     color: var(--red);
     font-size: 12.5px;
     min-height: 16px;
     margin-top: 8px;
+  }
+
+  /* SPLASH / LOADING SCREEN */
+  .splash-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .splash-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .splash-logo span { color: var(--accent); }
+  .splash-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   /* TOAST */
@@ -986,6 +1151,9 @@
     .header-actions .btn { padding: 10px 12px; }
 
     main { padding: 14px; }
+    #clientsSection, #engineersSection { padding: 14px; }
+    .tab-bar { padding: 0 14px; }
+    .tab { padding: 10px 14px; font-size: 12px; }
 
     /* Stats: 2 columns, denser */
     .stats-row {
@@ -1119,50 +1287,273 @@
   }
 
   @media (max-width: 380px) {
+    header { padding: 10px 10px; }
+    .header-actions { gap: 4px; }
+    .header-actions .btn { padding: 8px 8px; }
+    .logo-icon { height: 26px; }
+    .logo { gap: 6px; }
     .stat-val { font-size: 20px; }
-    .logo-text { font-size: 15px; }
+    .logo-text { font-size: 14px; }
+    .name-banner { padding: 6px 12px 8px; font-size: 11px; letter-spacing: 1.5px; }
+    .name-banner span { font-size: 13px; }
     .attach-btn { padding: 10px 10px; font-size: 12px; }
     .attach-btn svg { width: 13px; height: 13px; }
+  }
+
+  /* ─── CLIENT DETAIL PAGE ─────────────────────────────── */
+  .detail-page {
+    display: none;
+    padding: 28px 32px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .detail-page.active { display: block; }
+
+  .detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 6px 0;
+    margin-bottom: 20px;
+    transition: color 0.15s;
+  }
+  .detail-back:hover { color: var(--accent); }
+
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .detail-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+
+  .detail-status {
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .detail-section {
+    margin-bottom: 24px;
+  }
+
+  .detail-section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .detail-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .detail-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .detail-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .detail-card.span-2 { grid-column: span 2; }
+  .detail-card.span-3 { grid-column: 1 / -1; }
+
+  .detail-card-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .detail-card-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .detail-card-value.empty {
+    color: var(--text-dim);
+    font-style: italic;
+    font-weight: 400;
+  }
+  .detail-card-value a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .detail-card-value a:hover { text-decoration: underline; }
+
+  .detail-card-value .eq-spec {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 3px;
+  }
+
+  .detail-card-value .due-date { font-family: 'DM Mono', monospace; }
+
+  .detail-notes {
+    white-space: pre-wrap;
+    line-height: 1.7;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  /* Future sections placeholder */
+  .detail-placeholder {
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .detail-placeholder-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+    opacity: 0.4;
+  }
+
+  @media (max-width: 700px) {
+    .detail-page { padding: 14px; }
+    .detail-title { font-size: 22px; }
+    .detail-cards { grid-template-columns: 1fr; }
+    .detail-card.span-2 { grid-column: 1; }
+    .detail-card.span-3 { grid-column: 1; }
+    .detail-header { flex-wrap: wrap; gap: 12px; }
+    .detail-actions {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+    }
+    .detail-actions .btn {
+      flex: 1;
+      justify-content: center;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+    .detail-back {
+      font-size: 14px;
+      padding: 10px 0;
+      margin-bottom: 16px;
+      gap: 10px;
+    }
+    .detail-back svg { width: 18px; height: 18px; }
+    .detail-section { margin-bottom: 20px; }
+    .detail-card { padding: 14px 16px; }
+    .detail-card-value { font-size: 15px; }
+    .detail-card-value a {
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .detail-notes { font-size: 14px; line-height: 1.7; }
+  }
+
+  @media (max-width: 380px) {
+    .detail-title { font-size: 20px; }
+    .detail-actions .btn { padding: 11px 12px; font-size: 13px; }
   }
 </style>
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
+<!-- SPLASH / LOADING SCREEN (shown first while checking auth) -->
+<div class="splash-screen" id="splashScreen">
+  <div class="splash-logo">PWT <span>SALES</span></div>
+  <div class="splash-spinner"></div>
+</div>
+
+<!-- LOGIN OVERLAY (hidden until auth check fails) -->
 <div class="login-overlay" id="loginOverlay" style="display:none">
   <div class="login-card">
     <div class="login-logo">PWT <span>SALES</span></div>
-    <div class="login-sub">Enter password to continue</div>
+    <div class="login-sub">Sign in to continue</div>
     <form onsubmit="event.preventDefault(); doLogin();">
-      <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="current-password">
-      <button type="submit" class="btn btn-primary">Continue</button>
+      <input type="text" id="usernameInput" placeholder="Username" autocomplete="username">
+      <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password">
+      <button type="submit" class="btn btn-primary">Sign In</button>
     </form>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
+<!-- APP SHELL (hidden until auth) -->
+<div id="appShell" style="display:none">
+
 <!-- HEADER -->
 <header>
-  <div class="logo">
+  <a class="logo" href="#" onclick="backToList(); return false;" style="text-decoration:none; color:inherit;">
     <img src="/logoo.png" alt="PWT" class="logo-icon">
     <div class="logo-text">PWT <span>SALES</span></div>
-  </div>
+  </a>
   <div class="header-actions">
     <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
-    <button class="btn btn-ghost" onclick="exportExcel()" aria-label="Export Excel">
+    <button class="btn btn-ghost" id="exportBtn" onclick="exportExcel()" aria-label="Export Excel">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       <span class="btn-label">Export Excel</span>
     </button>
-    <button class="btn btn-primary" onclick="openAddModal()">
+    <button class="btn btn-primary" id="addSiteBtn" onclick="openAddModal()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       <span class="btn-label">Add Site</span><span class="btn-label-mobile" style="display:none">Add</span>
+    </button>
+    <button class="btn btn-primary" id="addClientBtn" onclick="openAddClientModal()" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="btn-label">Add Client</span><span class="btn-label-mobile" style="display:none">Add</span>
+    </button>
+    <button class="btn btn-primary admin-only" id="addEngineerBtn" onclick="openAddEngineerModal()" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      <span class="btn-label">Add Engineer</span><span class="btn-label-mobile" style="display:none">Add</span>
     </button>
     <button class="btn btn-ghost" onclick="logout()" aria-label="Log out" title="Log out">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
   </div>
 </header>
-<div class="name-banner">Sales Representative — <span>Nouh Mosa</span></div>
+<div class="name-banner">Sales Representative — <span id="engineerName"></span></div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab active" data-tab="leads" onclick="switchTab('leads')">Leads</button>
+  <button class="tab" data-tab="clients" onclick="switchTab('clients')">Clients</button>
+  <button class="tab admin-only" data-tab="engineers" onclick="switchTab('engineers')" style="display:none">Team</button>
+</div>
 
 <!-- MAIN -->
 <main>
@@ -1201,6 +1592,75 @@
     </table>
   </div>
 </main>
+
+<!-- CLIENTS SECTION -->
+<section id="clientsSection" style="display:none">
+  <div class="stats-row" id="clientStatsRow"></div>
+  <div class="controls">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search clients..." id="clientSearchInput" oninput="renderClientTable()">
+    </div>
+    <div class="ml-auto">
+      <span style="font-size:12px; color:var(--text-muted); font-family:'DM Mono',monospace;" id="clientRowCount"></span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="clientSortBy('name')">Client Name ↕</th>
+          <th>Contact</th>
+          <th>Phone</th>
+          <th>Location</th>
+          <th>Products</th>
+          <th>Categories</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="clientTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ENGINEERS SECTION (admin only) -->
+<section id="engineersSection" style="display:none" class="admin-only">
+  <div class="stats-row" id="engineerStatsRow"></div>
+  <div class="controls">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search team..." id="engineerSearchInput" oninput="renderEngineerTable()">
+    </div>
+    <div class="ml-auto">
+      <span style="font-size:12px; color:var(--text-muted); font-family:'DM Mono',monospace;" id="engineerRowCount"></span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="engineerTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- CLIENT DETAIL PAGE -->
+<div class="detail-page" id="detailPage">
+  <button class="detail-back" onclick="backToList()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span id="backLabel">Back to all sites</span>
+  </button>
+  <div id="detailContent"></div>
+</div>
+
+</div><!-- /appShell -->
 
 <!-- ADD MODAL (AI) -->
 <div class="modal-backdrop" id="addModal">
@@ -1300,6 +1760,7 @@
           <span class="equip-chip"><input type="checkbox" id="e_eq_boilers" value="Boilers"><label for="e_eq_boilers">Boilers</label></span>
           <span class="equip-chip"><input type="checkbox" id="e_eq_cooling" value="Cooling Towers"><label for="e_eq_cooling">Cooling Towers</label></span>
           <span class="equip-chip"><input type="checkbox" id="e_eq_chillers" value="Chillers"><label for="e_eq_chillers">Chillers</label></span>
+          <span class="equip-chip"><input type="checkbox" id="e_eq_pools" value="Swimming Pools"><label for="e_eq_pools">Swimming Pools</label></span>
         </div>
       </div>
       <div class="form-field">
@@ -1317,6 +1778,8 @@
           <option value="Qualified Prospect">🟡 Qualified Prospect</option>
           <option value="Interested Prospect">🟠 Interested Prospect</option>
           <option value="Hot Prospect">🔴 Hot Prospect</option>
+          <option value="Closed Won">🟢 Closed Won</option>
+          <option value="Lost">⚫ Lost</option>
         </select>
       </div>
       <div class="form-field">
@@ -1341,6 +1804,139 @@
   </div>
 </div>
 
+<!-- ADD/EDIT CLIENT MODAL -->
+<div class="modal-backdrop" id="clientModal">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <div class="modal-title" id="clientModalTitle">Add Client</div>
+      <button class="modal-close" onclick="closeModal('clientModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field field-full">
+        <label>Client Name</label>
+        <input type="text" id="c_name">
+      </div>
+      <div class="form-field">
+        <label>Contact Name</label>
+        <input type="text" id="c_contact">
+      </div>
+      <div class="form-field">
+        <label>Phone</label>
+        <input type="text" id="c_phone">
+      </div>
+      <div class="form-field field-full">
+        <label>Location</label>
+        <input type="text" id="c_location">
+      </div>
+      <div class="form-field field-full">
+        <label>Notes</label>
+        <textarea id="c_notes" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteClient()" id="deleteClientBtn" style="display:none">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT PRODUCT MODAL -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title" id="productModalTitle">Add Product</div>
+      <button class="modal-close" onclick="closeModal('productModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Category</label>
+        <select id="p_category" onchange="updateProductNameOptions()">
+          <option value="boilers">Boilers</option>
+          <option value="cooling_towers">Cooling Towers</option>
+          <option value="chillers">Chillers</option>
+          <option value="swimming_pools">Swimming Pools</option>
+        </select>
+      </div>
+      <div class="form-field field-full">
+        <label>Product Name</label>
+        <select id="p_name" onchange="onProductNameChange()"></select>
+        <input type="text" id="p_name_custom" placeholder="Enter custom product name" style="display:none;margin-top:6px;">
+      </div>
+      <div class="form-field">
+        <label>Model</label>
+        <input type="text" id="p_model">
+      </div>
+      <div class="form-field">
+        <label>Quantity</label>
+        <input type="number" id="p_quantity" min="1" value="1">
+      </div>
+      <div class="form-field">
+        <label>Purchase Date</label>
+        <input type="date" id="p_installDate">
+      </div>
+      <div class="form-field">
+        <label>Next Expected Purchase</label>
+        <input type="date" id="p_nextMaintenance">
+      </div>
+      <div class="form-field">
+        <label>Status</label>
+        <select id="p_status">
+          <option value="active">Active</option>
+          <option value="running_out_of_stock">Running Out of Stock</option>
+        </select>
+      </div>
+      <div class="form-field field-full">
+        <label>Notes</label>
+        <textarea id="p_notes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="deleteProduct()" id="deleteProductBtn" style="display:none">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeModal('productModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ENGINEER MODAL (admin only) -->
+<div class="modal-backdrop" id="engineerModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title" id="engineerModalTitle">Add Engineer</div>
+      <button class="modal-close" onclick="closeModal('engineerModal')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-field field-full">
+        <label>Full Name</label>
+        <input type="text" id="eng_name">
+      </div>
+      <div class="form-field">
+        <label>Username</label>
+        <input type="text" id="eng_username">
+      </div>
+      <div class="form-field">
+        <label>Password</label>
+        <input type="password" id="eng_password">
+      </div>
+      <div class="form-field">
+        <label>Role</label>
+        <select id="eng_role">
+          <option value="engineer">Engineer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeModal('engineerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEngineer()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <div class="toast-dot"></div>
@@ -1350,11 +1946,23 @@
 <script>
 // ─── DATA ───────────────────────────────────────────────
 let sites = [];
+let clients = [];
 let editingId = null;
 let pendingEntry = null;
 let filterStatus = 'All';
 let sortCol = 'name';
 let sortAsc = true;
+let currentEngineer = null; // { id, fullName, role }
+let activeTab = 'leads';
+
+function setCurrentEngineer(eng) {
+  currentEngineer = eng;
+  const nameEl = document.getElementById('engineerName');
+  if (nameEl) nameEl.textContent = eng?.fullName || '';
+  // Show/hide admin features
+  const adminEls = document.querySelectorAll('.admin-only');
+  adminEls.forEach(el => el.style.display = eng?.role === 'admin' ? '' : 'none');
+}
 
 const STATUS_MAP = {
   'Potential Prospect': 'badge-pp',
@@ -1372,6 +1980,7 @@ const EQUIP_OPTS = [
   { key: 'boilers',  label: 'Boilers',       match: ['boiler'] },
   { key: 'cooling',  label: 'Cooling Towers', match: ['cooling','tower'] },
   { key: 'chillers', label: 'Chillers',       match: ['chiller'] },
+  { key: 'pools',    label: 'Swimming Pools', match: ['swimming','pool'] },
 ];
 function equipChipsHTML(prefix, val) {
   const lower = (val || '').toLowerCase();
@@ -1413,55 +2022,134 @@ async function deleteSite(id) {
 
 async function fetchSites() {
   const res = await fetch('/api/sites');
-  if (res.status === 401) return { authed: false };
+  if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('fetch failed');
   const data = await res.json();
-  return { authed: true, sites: data.sites || [] };
+  return data.sites || [];
 }
 
 // ─── AUTH / INIT ───────────────────────────────────────
+let isAuthenticated = false;
+
+function hideSplash() {
+  const s = document.getElementById('splashScreen');
+  if (s) s.style.display = 'none';
+}
 function showLogin() {
+  isAuthenticated = false;
+  hideSplash();
+  document.getElementById('appShell').style.display = 'none';
   document.getElementById('loginOverlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('passwordInput')?.focus(), 50);
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('usernameInput')?.focus(), 50);
 }
 function hideLogin() {
+  isAuthenticated = true;
+  hideSplash();
   document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appShell').style.display = '';
+  document.body.style.overflow = '';
+}
+function requireAuth() {
+  if (!isAuthenticated) { showLogin(); return false; }
+  return true;
 }
 
 async function doLogin() {
+  const username = document.getElementById('usernameInput').value.trim();
   const pw = document.getElementById('passwordInput').value;
   const errEl = document.getElementById('loginError');
+  const btn = document.querySelector('.login-card .btn');
   errEl.textContent = '';
+  if (!username || !pw) { errEl.textContent = 'Enter username and password'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
   try {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw })
+      body: JSON.stringify({ username, password: pw })
     });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const e = await res.json().catch(() => ({}));
-      errEl.textContent = e.error || 'Wrong password';
+      errEl.textContent = data.error || 'Invalid credentials';
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
       return;
     }
+    // Immediately hide login & show skeletons — don't wait for data
+    if (data.engineer) setCurrentEngineer(data.engineer);
+    hideLogin();
+    showLeadSkeletons();
+    document.getElementById('usernameInput').value = '';
     document.getElementById('passwordInput').value = '';
-    await loadData();
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+    // Now load data in background (skeletons are already showing)
+    loadDataAfterLogin();
   } catch {
     errEl.textContent = 'Connection error';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+async function loadDataAfterLogin() {
+  try {
+    const sitesRes = await fetch('/api/sites');
+    if (sitesRes.status === 401) { showLogin(); return; }
+    const sitesData = await sitesRes.json();
+    sites = sitesData.sites || [];
+    await maybeMigrateLocal();
+    renderStats();
+    renderPills();
+    renderTable();
+    if (pendingRoute) {
+      const r = pendingRoute; pendingRoute = null;
+      location.hash = r;
+      handleRoute();
+    } else {
+      handleRoute();
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Could not load data. Refresh to retry.', 'error');
   }
 }
 
 async function loadData() {
   try {
-    const r = await fetchSites();
-    if (!r.authed) { showLogin(); return; }
-    sites = r.sites;
+    // Check auth first (returns engineer info)
+    const authRes = await fetch('/api/auth');
+    const authData = await authRes.json();
+    if (!authData.authed) { showLogin(); return; }
+    if (authData.engineer) setCurrentEngineer(authData.engineer);
+
+    // Auth valid — immediately show app with skeletons (hide splash + login)
     hideLogin();
+    showLeadSkeletons();
+
+    // Fetch sites
+    const sitesRes = await fetch('/api/sites');
+    if (sitesRes.status === 401) { showLogin(); return; }
+    const sitesData = await sitesRes.json();
+    sites = sitesData.sites || [];
+
     await maybeMigrateLocal();
     renderStats();
+    renderPills();
     renderTable();
+    // Handle route after data is ready
+    if (pendingRoute) {
+      const r = pendingRoute; pendingRoute = null;
+      location.hash = r;
+      handleRoute();
+    } else {
+      handleRoute();
+    }
   } catch (err) {
     console.error(err);
-    showToast('Could not load data. Refresh to retry.', 'error');
+    showLogin();
   }
 }
 
@@ -1477,14 +2165,13 @@ async function maybeMigrateLocal() {
     if (!s.id) s.id = uid();
     try { await saveSite(s); } catch (err) { console.error('migration error', err); }
   }
-  const r = await fetchSites();
-  if (r.authed) sites = r.sites;
+  sites = await fetchSites();
   localStorage.setItem('sitetrack_v1_migrated_' + Date.now(), raw);
   localStorage.removeItem('sitetrack_v1');
 }
 
 function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return crypto.randomUUID();
 }
 
 // ─── STATS ──────────────────────────────────────────────
@@ -1589,7 +2276,7 @@ function renderTable() {
       if (d < today) dueCls = 'overdue';
       else if (d <= soon) dueCls = 'soon';
     }
-    return `<tr onclick="openEdit('${s.id}')">
+    return `<tr onclick="viewClient('${s.id}')">
       <td><div class="site-name">${esc(s.name || '—')}</div></td>
       <td>
         <div class="contact-info">
@@ -1621,6 +2308,12 @@ function renderTable() {
 function formatDate(d) {
   const dt = new Date(d);
   return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function formatDateTime(d) {
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+    + ' ' + dt.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
 }
 
 function esc(s) {
@@ -1840,18 +2533,18 @@ function renderPreview(entry) {
     `<option value="${v}"${cur === v ? ' selected' : ''}>${l}</option>`).join('');
 
   document.getElementById('previewGrid').innerHTML = `
-    ${tf('p_name', 'Site Name', entry.name)}
-    ${tf('p_contact', 'Contact', entry.contact)}
-    ${tf('p_phone', 'Phone', entry.phone)}
+    ${tf('pv_name', 'Site Name', entry.name)}
+    ${tf('pv_contact', 'Contact', entry.contact)}
+    ${tf('pv_phone', 'Phone', entry.phone)}
     <div class="preview-field">
       <div class="pf-label">Equipment</div>
-      ${equipChipsHTML('p_eq', entry.equipment)}
+      ${equipChipsHTML('pv_eq', entry.equipment)}
     </div>
-    ${tf('p_specs', 'Specs', entry.specs)}
-    ${tf('p_location', 'Location', entry.location)}
+    ${tf('pv_specs', 'Specs', entry.specs)}
+    ${tf('pv_location', 'Location', entry.location)}
     <div class="preview-field">
       <div class="pf-label">Status</div>
-      <select class="pf-input" id="p_status">${sel([
+      <select class="pf-input" id="pv_status">${sel([
         ['Potential Prospect','🔵 Potential Prospect'],
         ['Qualified Prospect','🟡 Qualified Prospect'],
         ['Interested Prospect','🟠 Interested Prospect'],
@@ -1860,10 +2553,10 @@ function renderPreview(entry) {
     </div>
     <div class="preview-field">
       <div class="pf-label">Due Date</div>
-      <input class="pf-input" type="date" id="p_dueDate" value="${esc(entry.dueDate || '')}">
+      <input class="pf-input" type="date" id="pv_dueDate" value="${esc(entry.dueDate || '')}">
     </div>
-    ${tf('p_nextAction', 'Next Action', entry.nextAction, true)}
-    ${tf('p_notes', 'Notes', entry.notes, true)}
+    ${tf('pv_nextAction', 'Next Action', entry.nextAction, true)}
+    ${tf('pv_notes', 'Notes', entry.notes, true)}
   `;
 }
 
@@ -1871,16 +2564,16 @@ async function confirmAdd() {
   if (!pendingEntry) return;
   const entry = {
     ...pendingEntry,
-    name:       document.getElementById('p_name')?.value ?? pendingEntry.name,
-    contact:    document.getElementById('p_contact')?.value ?? pendingEntry.contact,
-    phone:      document.getElementById('p_phone')?.value ?? pendingEntry.phone,
-    equipment:  readEquipChips('p_eq') || pendingEntry.equipment,
-    specs:      document.getElementById('p_specs')?.value ?? pendingEntry.specs,
-    location:   document.getElementById('p_location')?.value ?? pendingEntry.location,
-    status:     document.getElementById('p_status')?.value ?? pendingEntry.status,
-    dueDate:    document.getElementById('p_dueDate')?.value ?? pendingEntry.dueDate,
-    nextAction: document.getElementById('p_nextAction')?.value ?? pendingEntry.nextAction,
-    notes:      document.getElementById('p_notes')?.value ?? pendingEntry.notes,
+    name:       document.getElementById('pv_name')?.value ?? pendingEntry.name,
+    contact:    document.getElementById('pv_contact')?.value ?? pendingEntry.contact,
+    phone:      document.getElementById('pv_phone')?.value ?? pendingEntry.phone,
+    equipment:  readEquipChips('pv_eq') || pendingEntry.equipment,
+    specs:      document.getElementById('pv_specs')?.value ?? pendingEntry.specs,
+    location:   document.getElementById('pv_location')?.value ?? pendingEntry.location,
+    status:     document.getElementById('pv_status')?.value ?? pendingEntry.status,
+    dueDate:    document.getElementById('pv_dueDate')?.value ?? pendingEntry.dueDate,
+    nextAction: document.getElementById('pv_nextAction')?.value ?? pendingEntry.nextAction,
+    notes:      document.getElementById('pv_notes')?.value ?? pendingEntry.notes,
   };
   pendingEntry = null;
   const btn = document.getElementById('confirmAddBtn');
@@ -1912,6 +2605,7 @@ function openEdit(id) {
   document.getElementById('e_eq_boilers').checked = eqLower.includes('boiler');
   document.getElementById('e_eq_cooling').checked = eqLower.includes('cooling') || eqLower.includes('tower');
   document.getElementById('e_eq_chillers').checked = eqLower.includes('chiller');
+  document.getElementById('e_eq_pools').checked = eqLower.includes('swimming') || eqLower.includes('pool');
   document.getElementById('e_specs').value = s.specs || '';
   document.getElementById('e_location').value = s.location || '';
   document.getElementById('e_status').value = s.status || 'Potential Prospect';
@@ -1947,6 +2641,8 @@ async function saveEdit() {
     renderStats();
     renderTable();
     closeModal('editModal');
+    // Refresh detail view if open
+    if (location.hash.startsWith('#client/')) showDetailView(editingId);
     showToast('Changes saved ✓', 'success');
   } catch (err) {
     if (err.message !== 'unauthorized') showToast('Could not save', 'error');
@@ -1971,6 +2667,7 @@ async function confirmDelete(id, btn) {
     renderStats();
     renderTable();
     closeModal('editModal');
+    if (location.hash.startsWith('#client/')) backToList();
     showToast(`${s.name} deleted`, 'error');
   } catch (err) {
     if (err.message !== 'unauthorized') showToast('Could not delete', 'error');
@@ -1990,14 +2687,36 @@ document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
   });
 });
 
+// Block all clicks on login overlay and splash screen from leaking through
+document.getElementById('loginOverlay').addEventListener('click', e => {
+  e.stopPropagation();
+});
+document.getElementById('splashScreen').addEventListener('click', e => {
+  e.stopPropagation();
+});
+
 document.addEventListener('keydown', e => {
+  if (!isAuthenticated) {
+    // Allow typing in login form inputs
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Escape') document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
 });
 
 // ─── EXPORT EXCEL ────────────────────────────────────────
 function exportExcel() {
   const headers = ['Site Name','Contact','Phone','Equipment','Specs','Location','Status','Next Action','Due Date','Notes'];
-  const rows = sites.map(s => [
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const filtered = sites.filter(s => {
+    const match = (s.name + s.contact + s.phone + s.equipment + s.location + s.nextAction + s.notes)
+      .toLowerCase().includes(q);
+    const statusMatch = filterStatus === 'All' || s.status === filterStatus;
+    return match && statusMatch;
+  });
+  const rows = filtered.map(s => [
     s.name, s.contact, s.phone, s.equipment, s.specs,
     s.location, s.status, s.nextAction, s.dueDate, s.notes
   ]);
@@ -2028,6 +2747,33 @@ function showToast(msg, type='success') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+// ─── SKELETON LOADING ───────────────────────────────────
+function showClientSkeletons() {
+  document.getElementById('clientStatsRow').innerHTML =
+    '<div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div>';
+  document.getElementById('clientRowCount').textContent = '';
+  document.getElementById('clientTableBody').innerHTML =
+    '<tr><td colspan="7" style="padding:0;border:none"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></td></tr>';
+}
+
+function showEngineerSkeletons() {
+  document.getElementById('engineerStatsRow').innerHTML =
+    '<div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div>';
+  document.getElementById('engineerRowCount').textContent = '';
+  document.getElementById('engineerTableBody').innerHTML =
+    '<tr><td colspan="5" style="padding:0;border:none"><div class="skel skel-row"></div><div class="skel skel-row"></div></td></tr>';
+}
+
+function showLeadSkeletons() {
+  document.getElementById('statsRow').innerHTML =
+    '<div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div>';
+  document.getElementById('filterPills').innerHTML =
+    '<span class="skel skel-pill"></span><span class="skel skel-pill"></span><span class="skel skel-pill"></span><span class="skel skel-pill"></span>';
+  document.getElementById('rowCount').textContent = '';
+  document.getElementById('tableBody').innerHTML =
+    '<tr><td colspan="9" style="padding:0;border:none"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></td></tr>';
+}
+
 // ─── THEME TOGGLE ───────────────────────────────────────
 const SUN_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
 const MOON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
@@ -2048,15 +2794,1028 @@ applyTheme(localStorage.getItem('pwt_theme') || 'dark');
 async function logout() {
   await fetch('/api/auth', { method: 'DELETE' });
   sites = [];
+  clients = [];
+  currentEngineer = null;
   renderStats();
   renderTable();
   showLogin();
 }
 
+// ─── TAB SWITCHING ──────────────────────────────────────
+function updateHeaderButtons(tab) {
+  document.getElementById('addSiteBtn').style.display = tab === 'leads' ? '' : 'none';
+  document.getElementById('exportBtn').style.display = tab === 'leads' ? '' : 'none';
+  document.getElementById('addClientBtn').style.display = tab === 'clients' ? '' : 'none';
+  document.getElementById('addEngineerBtn').style.display = tab === 'engineers' ? '' : 'none';
+}
+
+function switchTab(tab) {
+  if (!requireAuth()) return;
+  activeTab = tab;
+  document.querySelectorAll('.tab-bar .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  document.querySelector('main').style.display = tab === 'leads' ? '' : 'none';
+  document.getElementById('clientsSection').style.display = tab === 'clients' ? '' : 'none';
+  document.getElementById('engineersSection').style.display = tab === 'engineers' ? '' : 'none';
+  document.getElementById('detailPage').classList.remove('active');
+  document.querySelector('.name-banner').style.display = '';
+  document.querySelector('.tab-bar').style.display = '';
+
+  updateHeaderButtons(tab);
+
+  if (tab === 'clients') { showClientSkeletons(); loadClients(); }
+  if (tab === 'engineers') { showEngineerSkeletons(); loadEngineers(); }
+  if (tab === 'leads') { location.hash = ''; }
+  else if (tab === 'clients') { location.hash = 'clients'; }
+  else if (tab === 'engineers') { location.hash = 'engineers'; }
+}
+
+// ─── LEAD DETAIL PAGE ───────────────────────────────────
+function viewClient(id) {
+  if (!requireAuth()) return;
+  location.hash = 'lead/' + id;
+}
+
+function viewCustomer(id) {
+  if (!requireAuth()) return;
+  location.hash = 'customer/' + id;
+}
+
+function viewEngineer(id) {
+  if (!requireAuth()) return;
+  location.hash = 'engineer/' + id;
+}
+
+function backToList() {
+  if (activeTab === 'clients') location.hash = 'clients';
+  else if (activeTab === 'engineers') location.hash = 'engineers';
+  else location.hash = '';
+}
+
+function showListView() {
+  document.querySelector('main').style.display = activeTab === 'leads' ? '' : 'none';
+  document.getElementById('clientsSection').style.display = activeTab === 'clients' ? '' : 'none';
+  document.getElementById('engineersSection').style.display = activeTab === 'engineers' ? '' : 'none';
+  document.querySelector('.name-banner').style.display = '';
+  document.querySelector('.tab-bar').style.display = '';
+  document.getElementById('detailPage').classList.remove('active');
+}
+
+function showDetailView(id) {
+  const s = sites.find(x => x.id === id);
+  if (!s) { showListView(); return; }
+
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('clientsSection').style.display = 'none';
+  document.getElementById('engineersSection').style.display = 'none';
+  document.querySelector('.name-banner').style.display = 'none';
+  document.querySelector('.tab-bar').style.display = 'none';
+  document.getElementById('backLabel').textContent = 'Back to leads';
+
+  const badgeClass = STATUS_MAP[s.status] || 'badge-lost';
+  const badgeLabel = s.status || 'Unknown';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const soon = new Date(today); soon.setDate(soon.getDate() + 2);
+  let dueCls = '';
+  if (s.dueDate) {
+    const d = new Date(s.dueDate);
+    if (d < today) dueCls = 'overdue';
+    else if (d <= soon) dueCls = 'soon';
+  }
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-header">
+      <div>
+        <div class="detail-title">${esc(s.name || 'Untitled Site')}</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span class="badge ${badgeClass}" style="font-size:12px; padding:5px 14px;">${esc(badgeLabel)}</span>
+          ${s.createdAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Recorded ${formatDateTime(s.createdAt)}</span>` : ''}
+        </div>
+      </div>
+      <div class="detail-actions">
+        ${s.status === 'Closed Won' ? `<button class="btn btn-primary" onclick="convertToClient('${s.id}')" style="background:#22c55e;border-color:#22c55e;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Convert to Client
+        </button>` : ''}
+        <button class="btn btn-ghost" onclick="openEdit('${s.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-danger" onclick="confirmDelete('${s.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Contact & Location</div>
+      <div class="detail-cards">
+        <div class="detail-card">
+          <div class="detail-card-label">Contact Person</div>
+          <div class="detail-card-value${s.contact ? '' : ' empty'}">${esc(s.contact || 'Not set')}</div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Phone</div>
+          <div class="detail-card-value${s.phone ? '' : ' empty'}">
+            ${s.phone ? `<a href="tel:${esc(s.phone)}" style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(s.phone)}</a>` : 'Not set'}
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Location</div>
+          <div class="detail-card-value${s.location ? '' : ' empty'}">
+            ${s.location ? `<a href="https://www.google.com/maps/search/${encodeURIComponent(s.location)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(s.location)}</a>` : 'Not set'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Equipment</div>
+      <div class="detail-cards">
+        <div class="detail-card span-2">
+          <div class="detail-card-label">Equipment Type</div>
+          <div class="detail-card-value${s.equipment ? '' : ' empty'}">${esc(s.equipment || 'Not set')}</div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Specs</div>
+          <div class="detail-card-value${s.specs ? '' : ' empty'}">
+            ${s.specs ? `<span class="eq-spec">${esc(s.specs)}</span>` : 'Not set'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Pipeline</div>
+      <div class="detail-cards">
+        <div class="detail-card">
+          <div class="detail-card-label">Next Action</div>
+          <div class="detail-card-value${s.nextAction ? '' : ' empty'}">${esc(s.nextAction || 'Not set')}</div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Due Date</div>
+          <div class="detail-card-value${s.dueDate ? '' : ' empty'}">
+            ${s.dueDate ? `<span class="due-date ${dueCls}">${formatDate(s.dueDate)}</span>` : 'Not set'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Notes</div>
+      <div class="detail-card span-3" style="border-radius:var(--radius-lg)">
+        <div class="detail-card-value${s.notes ? '' : ' empty'}">
+          ${s.notes ? `<div class="detail-notes">${esc(s.notes)}</div>` : 'No notes yet'}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('detailPage').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ─── CLIENTS ────────────────────────────────────────────
+let clientSortCol = 'name';
+let clientSortAsc = true;
+let editingClientId = null;
+let editingProductId = null;
+let productFilterCategory = 'All';
+let currentClientProducts = [];
+let viewingClientId = null;
+
+const PRODUCT_CATALOG = {
+  boilers: [
+    { code: 'PW-10', desc: 'O₂ scavenger – Sulfite' },
+    { code: 'PW-60', desc: 'Corrosion inhibitor – Tannin' },
+    { code: 'PW-40', desc: 'Scale inhibitor' },
+    { code: 'PW-40A', desc: 'Scale inhibitor (acidic)' },
+    { code: 'PW-20', desc: 'Alkaline builder' },
+    { code: 'PW-80', desc: 'Steam treatment' },
+    { code: 'PW-47', desc: 'All-in-one – Tannin' },
+    { code: 'PW-48', desc: 'All-in-one – Sulfite' },
+    { code: 'Aquacure 285', desc: 'O₂ scavenger – DEHA' },
+    { code: 'Aquacure 288', desc: 'O₂ scavenger – CHZ' },
+    { code: 'Aquacure 296', desc: 'Scale inhibitor' },
+    { code: 'PW-141', desc: 'Hot water boiler – Nitrite' },
+    { code: 'PW-142', desc: 'Hot water boiler – Tannin' },
+  ],
+  cooling_towers: [
+    { code: 'CT-10', desc: 'Oxidizing biocide – NaOCl (12.5%)' },
+    { code: 'CT-12', desc: 'Oxidizing biocide – Liquid Bromine' },
+    { code: 'CT-25', desc: 'Non-ox biocide – Isothiazolin' },
+    { code: 'CT-28', desc: 'Non-ox biocide – Glutaraldehyde' },
+    { code: 'CT-40', desc: 'Scale & corrosion inhibitor' },
+    { code: 'CT-42', desc: 'Corrosion inhibitor – Molybdate' },
+    { code: 'CT-54', desc: 'Galvanized passivation' },
+    { code: 'CT-85', desc: 'Bio-dispersant' },
+  ],
+  chillers: [
+    { code: 'CH-10', desc: 'Corrosion inhibitor – Nitrite' },
+    { code: 'CH-12', desc: 'Al-safe corrosion inhibitor' },
+    { code: 'CH-20', desc: 'O₂ scavenger – Tannin' },
+    { code: 'CH-35', desc: 'Biocide – Isothiazolin' },
+    { code: 'CH-50', desc: 'MEG antifreeze' },
+    { code: 'CH-55', desc: 'PG antifreeze (food-grade)' },
+    { code: 'CH-77', desc: 'Pre-commission cleaner' },
+  ],
+  swimming_pools: [
+    { code: 'SP-10', desc: 'Pool shock – Ca(OCl)₂ (65%)' },
+    { code: 'SP-12', desc: 'Stabilized chlorine – Dichlor' },
+    { code: 'SP-15', desc: 'Non-chlorine shock – MPS' },
+    { code: 'SP-30', desc: 'Algaecide – Quat Ammonium' },
+    { code: 'SP-35', desc: 'Algae killer – Chelated Copper' },
+    { code: 'SP-40', desc: 'pH increaser – Soda Ash' },
+    { code: 'SP-42', desc: 'pH decreaser – Dry Acid' },
+    { code: 'SP-60', desc: 'Clarifier – PAC' },
+    { code: 'SP-80', desc: 'Phosphate remover' },
+  ],
+};
+
+const CATEGORY_LABELS = {
+  boilers: 'Boilers',
+  cooling_towers: 'Cooling Towers',
+  chillers: 'Chillers',
+  swimming_pools: 'Swimming Pools',
+};
+
+function updateProductNameOptions() {
+  const cat = document.getElementById('p_category').value;
+  const products = PRODUCT_CATALOG[cat] || [];
+  const sel = document.getElementById('p_name');
+  sel.innerHTML = products.map(p => {
+    const val = p.code + ': ' + p.desc;
+    return '<option value="' + esc(val) + '">' + esc(p.code) + ': ' + esc(p.desc) + '</option>';
+  }).join('') + '<option value="__other__">Other (custom)</option>';
+  document.getElementById('p_name_custom').style.display = 'none';
+  document.getElementById('p_name_custom').value = '';
+}
+
+function onProductNameChange() {
+  const isOther = document.getElementById('p_name').value === '__other__';
+  document.getElementById('p_name_custom').style.display = isOther ? '' : 'none';
+  if (isOther) document.getElementById('p_name_custom').focus();
+}
+
+async function loadClients() {
+  try {
+    const res = await fetch('/api/clients');
+    if (res.status === 401) { showLogin(); return; }
+    const data = await res.json();
+    clients = data.clients || [];
+    renderClientStats();
+    renderClientTable();
+  } catch (err) {
+    console.error(err);
+    showToast('Could not load clients', 'error');
+  }
+}
+
+function renderClientStats() {
+  const total = clients.length;
+  const totalProducts = clients.reduce((s, c) => s + (c.productCount || 0), 0);
+  const lowStock = clients.reduce((s, c) => s + (c.lowStockCount || 0), 0);
+  const stats = [
+    { label: 'Total Clients', val: total, color: 'var(--text)' },
+    { label: 'Total Products', val: totalProducts, color: 'var(--blue)' },
+    { label: 'Low Stock', val: lowStock, color: lowStock > 0 ? 'var(--red)' : 'var(--text)' },
+  ];
+  document.getElementById('clientStatsRow').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-val" style="color:${s.color}">${s.val}</div>
+    </div>
+  `).join('');
+}
+
+function clientSortBy(col) {
+  if (clientSortCol === col) clientSortAsc = !clientSortAsc;
+  else { clientSortCol = col; clientSortAsc = true; }
+  renderClientTable();
+}
+
+function renderClientTable() {
+  const q = (document.getElementById('clientSearchInput')?.value || '').toLowerCase();
+  let filtered = clients.filter(c => {
+    if (q && !(c.name + c.contact + c.phone + c.location).toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    const va = (a[clientSortCol] || '').toLowerCase();
+    const vb = (b[clientSortCol] || '').toLowerCase();
+    return clientSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  document.getElementById('clientRowCount').textContent = `${filtered.length} client${filtered.length !== 1 ? 's' : ''}`;
+
+  const isAdm = currentEngineer?.role === 'admin';
+  document.getElementById('clientTableBody').innerHTML = filtered.map(c => `
+    <tr onclick="viewCustomer('${c.id}')" style="cursor:pointer">
+      <td><strong>${esc(c.name || 'Unnamed')}</strong>${isAdm && c.engineerName ? `<br><span style="font-size:11px;color:var(--text-muted)">${esc(c.engineerName)}</span>` : ''}</td>
+      <td>${esc(c.contact || '—')}</td>
+      <td>${esc(c.phone || '—')}</td>
+      <td>${esc(c.location || '—')}</td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:12px">${c.productCount || 0}</span></td>
+      <td>${(c.categories || []).map(cat => `<span class="cat-chip cat-${cat}">${CATEGORY_LABELS[cat] || cat}</span>`).join(' ')}</td>
+      <td>
+        <button class="row-btn" onclick="event.stopPropagation(); openEditClient('${c.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddClientModal() {
+  editingClientId = null;
+  document.getElementById('clientModalTitle').textContent = 'Add Client';
+  document.getElementById('c_name').value = '';
+  document.getElementById('c_contact').value = '';
+  document.getElementById('c_phone').value = '';
+  document.getElementById('c_location').value = '';
+  document.getElementById('c_notes').value = '';
+  document.getElementById('deleteClientBtn').style.display = 'none';
+  document.getElementById('clientModal').classList.add('open');
+}
+
+function openEditClient(id) {
+  const c = clients.find(x => x.id === id);
+  if (!c) return;
+  editingClientId = id;
+  document.getElementById('clientModalTitle').textContent = 'Edit Client';
+  document.getElementById('c_name').value = c.name;
+  document.getElementById('c_contact').value = c.contact;
+  document.getElementById('c_phone').value = c.phone;
+  document.getElementById('c_location').value = c.location;
+  document.getElementById('c_notes').value = c.notes;
+  document.getElementById('deleteClientBtn').style.display = '';
+  document.getElementById('clientModal').classList.add('open');
+}
+
+async function saveClient() {
+  const client = {
+    id: editingClientId || crypto.randomUUID(),
+    name: document.getElementById('c_name').value.trim(),
+    contact: document.getElementById('c_contact').value.trim(),
+    phone: document.getElementById('c_phone').value.trim(),
+    location: document.getElementById('c_location').value.trim(),
+    notes: document.getElementById('c_notes').value.trim(),
+  };
+  if (!client.name) { showToast('Client name is required', 'error'); return; }
+  try {
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeModal('clientModal');
+    showToast(editingClientId ? 'Client updated' : 'Client added', 'success');
+    await loadClients();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteClient() {
+  if (!editingClientId) return;
+  if (!confirm('Delete this client and all their products?')) return;
+  try {
+    const res = await fetch('/api/clients?id=' + encodeURIComponent(editingClientId), { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
+    closeModal('clientModal');
+    showToast('Client deleted', 'success');
+    location.hash = 'clients';
+    await loadClients();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ─── CUSTOMER (CLIENT) DETAIL VIEW ─────────────────────
+async function showCustomerDetailView(id) {
+  let c = clients.find(x => x.id === id);
+  if (!c) {
+    // Might not be loaded yet
+    await loadClients();
+    c = clients.find(x => x.id === id);
+    if (!c) { showListView(); return; }
+  }
+
+  viewingClientId = id;
+  productFilterCategory = 'All';
+
+  // Load products
+  try {
+    const res = await fetch('/api/products?clientId=' + encodeURIComponent(id));
+    if (res.ok) {
+      const data = await res.json();
+      currentClientProducts = data.products || [];
+    }
+  } catch { currentClientProducts = []; }
+
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('clientsSection').style.display = 'none';
+  document.getElementById('engineersSection').style.display = 'none';
+  document.querySelector('.name-banner').style.display = 'none';
+  document.querySelector('.tab-bar').style.display = 'none';
+
+  document.getElementById('backLabel').textContent = 'Back to clients';
+
+  document.getElementById('detailContent').innerHTML = buildCustomerDetailHTML(c);
+  document.getElementById('detailPage').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function buildCustomerDetailHTML(c) {
+  const productsHTML = buildProductsSectionHTML();
+  return `
+    <div class="detail-header">
+      <div>
+        <div class="detail-title">${esc(c.name || 'Unnamed Client')}</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span class="badge badge-active" style="font-size:12px; padding:5px 14px;">Client</span>
+          ${c.convertedAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Converted ${formatDateTime(c.convertedAt)}</span>` : ''}
+          ${c.createdAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Added ${formatDateTime(c.createdAt)}</span>` : ''}
+        </div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-ghost" onclick="openEditClient('${c.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">Contact & Location</div>
+      <div class="detail-cards">
+        <div class="detail-card">
+          <div class="detail-card-label">Contact Person</div>
+          <div class="detail-card-value${c.contact ? '' : ' empty'}">${esc(c.contact || 'Not set')}</div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Phone</div>
+          <div class="detail-card-value${c.phone ? '' : ' empty'}">
+            ${c.phone ? `<a href="tel:${esc(c.phone)}" style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${esc(c.phone)}</a>` : 'Not set'}
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Location</div>
+          <div class="detail-card-value${c.location ? '' : ' empty'}">
+            ${c.location ? `<a href="https://www.google.com/maps/search/${encodeURIComponent(c.location)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${esc(c.location)}</a>` : 'Not set'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${c.notes ? `<div class="detail-section">
+      <div class="detail-section-title">Notes</div>
+      <div class="detail-card span-3" style="border-radius:var(--radius-lg)">
+        <div class="detail-card-value"><div class="detail-notes">${esc(c.notes)}</div></div>
+      </div>
+    </div>` : ''}
+
+    <div class="detail-section">
+      <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        Products & Inventory
+        <button class="btn btn-primary" onclick="openAddProductModal('${c.id}')" style="font-size:12px;padding:8px 14px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add Product
+        </button>
+      </div>
+      <div class="filter-pills" style="margin-bottom:12px;" id="productFilterPills">
+        ${buildProductFilterPillsHTML()}
+      </div>
+      <div id="productsContainer">${productsHTML}</div>
+    </div>
+  `;
+}
+
+function buildProductFilterPillsHTML() {
+  const cats = ['All', 'Boilers', 'Cooling Towers', 'Chillers', 'Swimming Pools'];
+  return cats.map(c =>
+    `<button class="pill${productFilterCategory === c ? ' active' : ''}" onclick="filterProductsByCategory('${c}')">${c}</button>`
+  ).join('');
+}
+
+function filterProductsByCategory(cat) {
+  productFilterCategory = cat;
+  document.getElementById('productFilterPills').innerHTML = buildProductFilterPillsHTML();
+  document.getElementById('productsContainer').innerHTML = buildProductsSectionHTML();
+}
+
+const CATEGORY_COLORS = {
+  boilers: 'var(--red)',
+  cooling_towers: 'var(--blue)',
+  chillers: 'var(--purple)',
+  swimming_pools: 'var(--accent-2)',
+};
+
+function buildProductsSectionHTML() {
+  if (currentClientProducts.length === 0) {
+    return '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No products yet. Add the first one above.</div>';
+  }
+
+  const grouped = {};
+  for (const p of currentClientProducts) {
+    if (!grouped[p.category]) grouped[p.category] = [];
+    grouped[p.category].push(p);
+  }
+
+  const order = ['boilers', 'cooling_towers', 'chillers', 'swimming_pools'];
+  // Apply category filter
+  const filterKey = productFilterCategory !== 'All'
+    ? Object.entries(CATEGORY_LABELS).find(([k,v]) => v === productFilterCategory)?.[0]
+    : null;
+
+  const visibleCats = order.filter(cat => grouped[cat] && (!filterKey || cat === filterKey));
+
+  if (visibleCats.length === 0) {
+    return '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No products in this category.</div>';
+  }
+
+  return visibleCats.map(cat => {
+    const products = grouped[cat];
+    const color = CATEGORY_COLORS[cat] || 'var(--accent)';
+    return `
+      <div style="margin-top:16px;">
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:${color};margin-bottom:8px;letter-spacing:0.5px;">${CATEGORY_LABELS[cat]}</div>
+        <div class="detail-cards">
+          ${products.map(p => `
+            <div class="detail-card" style="cursor:pointer;" onclick="openEditProduct('${p.id}')">
+              <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">
+                <div class="detail-card-label" style="margin:0">${esc(p.productName || 'Unnamed')}</div>
+                <span class="badge ${p.status === 'active' ? 'badge-active' : 'badge-stock'}" style="font-size:10px;padding:3px 8px;">${p.status === 'active' ? 'Active' : 'Low Stock'}</span>
+              </div>
+              ${p.model ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Model: ${esc(p.model)}</div>` : ''}
+              <div style="font-size:12px;color:var(--text-muted);">
+                Qty: <strong style="color:var(--text)">${p.quantity}</strong>
+                ${p.installDate ? ` · Purchased: ${formatDate(p.installDate)}` : ''}
+                ${p.nextMaintenanceDate ? ` · Next purchase: <span class="${new Date(p.nextMaintenanceDate) < new Date() ? 'overdue' : ''}">${formatDate(p.nextMaintenanceDate)}</span>` : ''}
+              </div>
+              ${p.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;">${esc(p.notes)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── PRODUCT CRUD ───────────────────────────────────────
+function openAddProductModal(clientId) {
+  editingProductId = null;
+  viewingClientId = clientId;
+  document.getElementById('productModalTitle').textContent = 'Add Product';
+  document.getElementById('p_category').value = 'boilers';
+  updateProductNameOptions();
+  document.getElementById('p_model').value = '';
+  document.getElementById('p_quantity').value = '1';
+  document.getElementById('p_installDate').value = '';
+  document.getElementById('p_nextMaintenance').value = '';
+  document.getElementById('p_status').value = 'active';
+  document.getElementById('p_notes').value = '';
+  document.getElementById('deleteProductBtn').style.display = 'none';
+  document.getElementById('productModal').classList.add('open');
+}
+
+function openEditProduct(id) {
+  const p = currentClientProducts.find(x => x.id === id);
+  if (!p) return;
+  editingProductId = id;
+  document.getElementById('productModalTitle').textContent = 'Edit Product';
+  document.getElementById('p_category').value = p.category;
+  updateProductNameOptions();
+  // Try to match stored product name to a catalog option
+  const sel = document.getElementById('p_name');
+  const match = [...sel.options].find(o => o.value === p.productName);
+  if (match) {
+    sel.value = p.productName;
+  } else {
+    sel.value = '__other__';
+    document.getElementById('p_name_custom').style.display = '';
+    document.getElementById('p_name_custom').value = p.productName;
+  }
+  document.getElementById('p_model').value = p.model;
+  document.getElementById('p_quantity').value = p.quantity;
+  document.getElementById('p_installDate').value = p.installDate || '';
+  document.getElementById('p_nextMaintenance').value = p.nextMaintenanceDate || '';
+  document.getElementById('p_status').value = p.status;
+  document.getElementById('p_notes').value = p.notes;
+  document.getElementById('deleteProductBtn').style.display = '';
+  document.getElementById('productModal').classList.add('open');
+}
+
+async function saveProduct() {
+  const nameVal = document.getElementById('p_name').value;
+  const productName = nameVal === '__other__'
+    ? document.getElementById('p_name_custom').value.trim()
+    : nameVal;
+  const product = {
+    id: editingProductId || crypto.randomUUID(),
+    clientId: viewingClientId,
+    category: document.getElementById('p_category').value,
+    productName: productName,
+    model: document.getElementById('p_model').value.trim(),
+    quantity: parseInt(document.getElementById('p_quantity').value) || 1,
+    installDate: document.getElementById('p_installDate').value || null,
+    nextMaintenanceDate: document.getElementById('p_nextMaintenance').value || null,
+    status: document.getElementById('p_status').value,
+    notes: document.getElementById('p_notes').value.trim(),
+  };
+  if (!product.productName) { showToast('Product name is required', 'error'); return; }
+  try {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeModal('productModal');
+    showToast(editingProductId ? 'Product updated' : 'Product added', 'success');
+    // Refresh detail view
+    await showCustomerDetailView(viewingClientId);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteProduct() {
+  if (!editingProductId) return;
+  if (!confirm('Delete this product?')) return;
+  try {
+    const res = await fetch('/api/products?id=' + encodeURIComponent(editingProductId), { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
+    closeModal('productModal');
+    showToast('Product deleted', 'success');
+    await showCustomerDetailView(viewingClientId);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ─── LEAD → CLIENT CONVERSION ───────────────────────────
+async function convertToClient(siteId) {
+  if (!confirm('Convert this lead to a client?')) return;
+  try {
+    const res = await fetch('/api/convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.clientId) {
+        // Already converted — navigate to the existing client
+        showToast('Already converted — opening client', 'success');
+        location.hash = 'customer/' + data.clientId;
+        return;
+      }
+      throw new Error(data.error || 'Conversion failed');
+    }
+    showToast('Lead converted to client!', 'success');
+    location.hash = 'customer/' + data.clientId;
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ─── ENGINEERS (admin) ──────────────────────────────────
+let engineers = [];
+let editingEngineerId = null;
+
+async function loadEngineers() {
+  if (currentEngineer?.role !== 'admin') return;
+  try {
+    const res = await fetch('/api/engineers');
+    if (!res.ok) return;
+    const data = await res.json();
+    engineers = data.engineers || [];
+    renderEngineerStats();
+    renderEngineerTable();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderEngineerStats() {
+  const total = engineers.length;
+  const active = engineers.filter(e => e.isActive).length;
+  const admins = engineers.filter(e => e.role === 'admin').length;
+  const stats = [
+    { label: 'Total Engineers', val: total, color: 'var(--text)' },
+    { label: 'Active', val: active, color: 'var(--blue)' },
+    { label: 'Admins', val: admins, color: 'var(--purple)' },
+  ];
+  document.getElementById('engineerStatsRow').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-val" style="color:${s.color}">${s.val}</div>
+    </div>
+  `).join('');
+}
+
+function renderEngineerTable() {
+  const q = (document.getElementById('engineerSearchInput')?.value || '').toLowerCase();
+  let filtered = engineers.filter(e => {
+    if (q && !(e.fullName + e.username + e.role).toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  document.getElementById('engineerRowCount').textContent = `${filtered.length} engineer${filtered.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('engineerTableBody').innerHTML = filtered.map(e => `
+    <tr onclick="viewEngineer('${e.id}')" style="cursor:pointer">
+      <td><strong>${esc(e.fullName)}</strong></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:12px">${esc(e.username)}</span></td>
+      <td><span class="badge ${e.role === 'admin' ? 'badge-hp' : 'badge-qp'}" style="font-size:11px;padding:3px 10px;">${e.role}</span></td>
+      <td><span class="badge ${e.isActive ? 'badge-active' : 'badge-stock'}" style="font-size:11px;padding:3px 10px;">${e.isActive ? 'Active' : 'Disabled'}</span></td>
+      <td>
+        <button class="row-btn" onclick="event.stopPropagation(); openEditEngineer('${e.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddEngineerModal() {
+  editingEngineerId = null;
+  document.getElementById('engineerModalTitle').textContent = 'Add Engineer';
+  document.getElementById('eng_name').value = '';
+  document.getElementById('eng_username').value = '';
+  document.getElementById('eng_password').value = '';
+  document.getElementById('eng_role').value = 'engineer';
+  document.getElementById('engineerModal').classList.add('open');
+}
+
+function openEditEngineer(id) {
+  const e = engineers.find(x => x.id === id);
+  if (!e) return;
+  editingEngineerId = id;
+  document.getElementById('engineerModalTitle').textContent = 'Edit Engineer';
+  document.getElementById('eng_name').value = e.fullName;
+  document.getElementById('eng_username').value = e.username;
+  document.getElementById('eng_password').value = '';
+  document.getElementById('eng_role').value = e.role;
+  document.getElementById('engineerModal').classList.add('open');
+}
+
+async function saveEngineer() {
+  const engineer = {
+    id: editingEngineerId || undefined,
+    fullName: document.getElementById('eng_name').value.trim(),
+    username: document.getElementById('eng_username').value.trim(),
+    password: document.getElementById('eng_password').value || undefined,
+    role: document.getElementById('eng_role').value,
+  };
+  if (!engineer.username) { showToast('Username is required', 'error'); return; }
+  if (!editingEngineerId && !engineer.password) { showToast('Password is required for new engineer', 'error'); return; }
+  try {
+    const res = await fetch('/api/engineers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ engineer }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+    closeModal('engineerModal');
+    showToast(editingEngineerId ? 'Engineer updated' : 'Engineer added', 'success');
+    await loadEngineers();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function showEngineerDetailView(id) {
+  // Make sure engineers are loaded
+  if (engineers.length === 0) {
+    await loadEngineers();
+  }
+  const eng = engineers.find(x => x.id === id);
+  if (!eng) { showListView(); return; }
+
+  // Fetch this engineer's leads and clients in parallel
+  let engLeads = [], engClients = [], totalLowStock = 0;
+  try {
+    const [leadsRes, clientsRes] = await Promise.all([
+      fetch('/api/sites?engineerId=' + encodeURIComponent(id)),
+      fetch('/api/clients?engineerId=' + encodeURIComponent(id)),
+    ]);
+    if (leadsRes.ok) {
+      const ld = await leadsRes.json();
+      engLeads = ld.sites || [];
+    }
+    if (clientsRes.ok) {
+      const cd = await clientsRes.json();
+      engClients = cd.clients || [];
+      totalLowStock = cd.totalLowStock || 0;
+    }
+  } catch (err) {
+    console.error('Failed to load engineer data:', err);
+  }
+
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('clientsSection').style.display = 'none';
+  document.getElementById('engineersSection').style.display = 'none';
+  document.querySelector('.name-banner').style.display = 'none';
+  document.querySelector('.tab-bar').style.display = 'none';
+
+  document.getElementById('backLabel').textContent = 'Back to team';
+
+  document.getElementById('detailContent').innerHTML = buildEngineerDetailHTML(eng, engLeads, engClients, totalLowStock);
+  document.getElementById('detailPage').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function buildEngineerDetailHTML(e, leads, clients, totalLowStock) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const soon = new Date(today); soon.setDate(soon.getDate() + 2);
+
+  // Build leads rows
+  let leadsHTML = '';
+  if (leads.length === 0) {
+    leadsHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No leads yet.</div>';
+  } else {
+    leadsHTML = `<div class="table-wrap"><table><thead><tr>
+      <th>Name</th><th>Status</th><th>Contact</th><th>Due Date</th>
+    </tr></thead><tbody>` + leads.map(s => {
+      const badgeClass = STATUS_MAP[s.status] || 'badge-lost';
+      const badgeLabel = STATUS_SHORT[s.status] || s.status || '—';
+      let dueCls = '';
+      if (s.dueDate) {
+        const d = new Date(s.dueDate);
+        if (d < today) dueCls = 'overdue';
+        else if (d <= soon) dueCls = 'soon';
+      }
+      return `<tr onclick="viewClient('${s.id}')" style="cursor:pointer">
+        <td><strong>${esc(s.name || '—')}</strong></td>
+        <td><span class="badge ${badgeClass}" style="font-size:11px;padding:3px 10px;">${esc(badgeLabel)}</span></td>
+        <td>${esc(s.contact || '—')}</td>
+        <td>${s.dueDate ? `<span class="due-date ${dueCls}">${formatDate(s.dueDate)}</span>` : '—'}</td>
+      </tr>`;
+    }).join('') + '</tbody></table></div>';
+  }
+
+  // Build clients rows
+  let clientsHTML = '';
+  if (clients.length === 0) {
+    clientsHTML = '<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">No clients yet.</div>';
+  } else {
+    clientsHTML = `<div class="table-wrap"><table><thead><tr>
+      <th>Name</th><th>Contact</th><th>Products</th><th>Categories</th>
+    </tr></thead><tbody>` + clients.map(c => {
+      return `<tr onclick="viewCustomer('${c.id}')" style="cursor:pointer">
+        <td><strong>${esc(c.name || 'Unnamed')}</strong></td>
+        <td>${esc(c.contact || '—')}</td>
+        <td><span style="font-family:'DM Mono',monospace;font-size:12px">${c.productCount || 0}</span></td>
+        <td>${(c.categories || []).map(cat => `<span class="cat-chip cat-${cat}">${CATEGORY_LABELS[cat] || cat}</span>`).join(' ')}</td>
+      </tr>`;
+    }).join('') + '</tbody></table></div>';
+  }
+
+  return `
+    <div class="detail-header">
+      <div>
+        <div class="detail-title">${esc(e.fullName || 'Unnamed Engineer')}</div>
+        <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span class="badge ${e.role === 'admin' ? 'badge-hp' : 'badge-qp'}" style="font-size:12px; padding:5px 14px;">${esc(e.role)}</span>
+          <span class="badge ${e.isActive ? 'badge-active' : 'badge-stock'}" style="font-size:12px; padding:5px 14px;">${e.isActive ? 'Active' : 'Disabled'}</span>
+          <span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">@${esc(e.username)}</span>
+          ${e.createdAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Joined ${formatDateTime(e.createdAt)}</span>` : ''}
+        </div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-ghost" onclick="openEditEngineer('${e.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Edit
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:24px;">
+      <div class="stat-card">
+        <div class="stat-label">Total Leads</div>
+        <div class="stat-val" style="color:var(--accent)">${leads.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Clients</div>
+        <div class="stat-val" style="color:var(--blue)">${clients.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Low Stock</div>
+        <div class="stat-val" style="color:${totalLowStock > 0 ? 'var(--orange)' : 'var(--text)'}">${totalLowStock}</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Leads <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);margin-left:8px;">${leads.length}</span>
+      </div>
+      ${leadsHTML}
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clients <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);margin-left:8px;">${clients.length}</span>
+      </div>
+      ${clientsHTML}
+    </div>
+  `;
+}
+
+function handleRoute() {
+  if (!isAuthenticated) return;
+  const hash = location.hash.replace('#', '');
+
+  // Backward compat: #client/id → #lead/id
+  if (hash.startsWith('client/')) {
+    location.hash = 'lead/' + hash.split('/')[1];
+    return;
+  }
+
+  if (hash.startsWith('lead/')) {
+    const id = hash.split('/')[1];
+    activeTab = 'leads';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'leads'));
+    updateHeaderButtons('leads');
+    if (sites.length > 0) {
+      showDetailView(id);
+    } else {
+      pendingRoute = hash;
+    }
+    return;
+  }
+
+  if (hash.startsWith('customer/')) {
+    const id = hash.split('/')[1];
+    activeTab = 'clients';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'clients'));
+    updateHeaderButtons('clients');
+    showCustomerDetailView(id);
+    return;
+  }
+
+  if (hash === 'clients') {
+    activeTab = 'clients';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'clients'));
+    updateHeaderButtons('clients');
+    showListView();
+    showClientSkeletons();
+    loadClients();
+    return;
+  }
+
+  if (hash.startsWith('engineer/')) {
+    if (currentEngineer?.role !== 'admin') { location.hash = ''; return; }
+    const id = hash.split('/')[1];
+    activeTab = 'engineers';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'engineers'));
+    updateHeaderButtons('engineers');
+    showEngineerDetailView(id);
+    return;
+  }
+
+  if (hash === 'engineers') {
+    if (currentEngineer?.role !== 'admin') { location.hash = ''; return; }
+    activeTab = 'engineers';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'engineers'));
+    updateHeaderButtons('engineers');
+    showListView();
+    showEngineerSkeletons();
+    loadEngineers();
+    return;
+  }
+
+  // Default: leads
+  activeTab = 'leads';
+  document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'leads'));
+  updateHeaderButtons('leads');
+  showListView();
+}
+
+let pendingRoute = null;
+window.addEventListener('hashchange', handleRoute);
+
+// ─── SESSION GUARD ──────────────────────────────────────
+// Re-verify session when user returns to the tab
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && isAuthenticated) {
+    try {
+      const r = await fetch('/api/auth');
+      const d = await r.json();
+      if (!d.authed) showLogin();
+    } catch {}
+  }
+});
+
 // ─── INIT ────────────────────────────────────────────────
-renderStats();
-renderPills();
-renderTable();
+// Splash screen is visible — loadData() checks auth, then either shows login or app
 loadData();
 </script>
 </body>
