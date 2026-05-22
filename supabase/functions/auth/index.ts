@@ -1,7 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession, createSession, deleteSession } from '../_shared/auth.ts';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
+import bcrypt from 'npm:bcryptjs@2.4.3';
 
 // ─── RATE LIMITING (in-memory, per instance) ─────────
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();

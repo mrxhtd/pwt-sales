@@ -1,7 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
+import bcrypt from 'npm:bcryptjs@2.4.3';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
         return json({ error: 'Password required for new engineer' }, 400);
       }
       if (e.password) {
-        record.password = await bcrypt.hash(e.password);
+        record.password = await bcrypt.hash(e.password, 10);
       }
 
       const { error } = await supabase
