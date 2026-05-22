@@ -1,25 +1,34 @@
-import crypto from 'node:crypto';
-import { getSupabase } from '../lib/db.js';
-import { getSession } from '../lib/auth.js';
+import { corsHeaders } from '../_shared/cors.ts';
+import { getSupabase } from '../_shared/db.ts';
+import { getSession } from '../_shared/auth.ts';
 
-export const config = { maxDuration: 30 };
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
-export default async function handler(req, res) {
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return json({ error: 'Method not allowed' }, 405);
   }
 
   const session = await getSession(req);
-  if (!session) return res.status(401).json({ error: 'Unauthorized' });
+  if (!session) return json({ error: 'Unauthorized' }, 401);
 
   const { engineerId, role } = session;
   const isAdmin = role === 'admin';
 
   try {
     const supabase = getSupabase();
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = await req.json();
     const siteId = body?.siteId;
-    if (!siteId) return res.status(400).json({ error: 'Missing siteId' });
+    if (!siteId) return json({ error: 'Missing siteId' }, 400);
 
     // Get the site
     const { data: site, error: sErr } = await supabase
@@ -28,16 +37,16 @@ export default async function handler(req, res) {
       .eq('id', siteId)
       .single();
 
-    if (sErr || !site) return res.status(404).json({ error: 'Site not found' });
+    if (sErr || !site) return json({ error: 'Site not found' }, 404);
 
     // Verify ownership
     if (site.engineer_id !== engineerId && !isAdmin) {
-      return res.status(403).json({ error: 'Not your site' });
+      return json({ error: 'Not your site' }, 403);
     }
 
     // Check status
     if (site.status !== 'Closed Won') {
-      return res.status(400).json({ error: 'Site must be Closed Won to convert' });
+      return json({ error: 'Site must be Closed Won to convert' }, 400);
     }
 
     // Check if already converted
@@ -48,7 +57,7 @@ export default async function handler(req, res) {
       .single();
 
     if (existing) {
-      return res.status(400).json({ error: 'Already converted', clientId: existing.id });
+      return json({ error: 'Already converted', clientId: existing.id }, 400);
     }
 
     // Create client
@@ -78,7 +87,7 @@ export default async function handler(req, res) {
     // Remove the lead from sites — it's now a client
     await supabase.from('sites').delete().eq('id', siteId);
 
-    return res.status(200).json({
+    return json({
       ok: true,
       clientId,
       client: {
@@ -96,7 +105,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
-    console.error('convert api error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('convert edge function error:', err);
+    return json({ error: 'Server error' }, 500);
   }
-}
+});

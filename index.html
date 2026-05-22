@@ -1944,6 +1944,20 @@
 </div>
 
 <script>
+// ─── API BASE ───────────────────────────────────────────
+const FUNCTIONS_BASE = 'https://hbiquvmldtoinqtmbvgd.supabase.co/functions/v1';
+
+// ─── AUTH TOKEN ─────────────────────────────────────────
+function getAuthToken() { return localStorage.getItem('pwt_token') || ''; }
+function setAuthToken(token) { localStorage.setItem('pwt_token', token); }
+function clearAuthToken() { localStorage.removeItem('pwt_token'); }
+function authHeaders(extra = {}) {
+  const h = { ...extra };
+  const token = getAuthToken();
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
 // ─── DATA ───────────────────────────────────────────────
 let sites = [];
 let clients = [];
@@ -2005,9 +2019,9 @@ const STATUS_SHORT = {
 };
 
 async function saveSite(site) {
-  const res = await fetch('/api/sites', {
+  const res = await fetch(FUNCTIONS_BASE + '/sites', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ site })
   });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
@@ -2015,13 +2029,13 @@ async function saveSite(site) {
 }
 
 async function deleteSite(id) {
-  const res = await fetch('/api/sites?id=' + encodeURIComponent(id), { method: 'DELETE' });
+  const res = await fetch(FUNCTIONS_BASE + '/sites?id=' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('delete failed');
 }
 
 async function fetchSites() {
-  const res = await fetch('/api/sites');
+  const res = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('fetch failed');
   const data = await res.json();
@@ -2065,7 +2079,7 @@ async function doLogin() {
   btn.disabled = true;
   btn.textContent = 'Signing in...';
   try {
-    const res = await fetch('/api/auth', {
+    const res = await fetch(FUNCTIONS_BASE + '/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password: pw })
@@ -2077,6 +2091,8 @@ async function doLogin() {
       btn.textContent = 'Sign In';
       return;
     }
+    // Store token in localStorage
+    if (data.token) setAuthToken(data.token);
     // Immediately hide login & show skeletons — don't wait for data
     if (data.engineer) setCurrentEngineer(data.engineer);
     hideLogin();
@@ -2096,7 +2112,7 @@ async function doLogin() {
 
 async function loadDataAfterLogin() {
   try {
-    const sitesRes = await fetch('/api/sites');
+    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
     sites = sitesData.sites || [];
@@ -2119,10 +2135,13 @@ async function loadDataAfterLogin() {
 
 async function loadData() {
   try {
+    // Check if we have a stored token
+    if (!getAuthToken()) { showLogin(); return; }
+
     // Check auth first (returns engineer info)
-    const authRes = await fetch('/api/auth');
+    const authRes = await fetch(FUNCTIONS_BASE + '/auth', { headers: authHeaders() });
     const authData = await authRes.json();
-    if (!authData.authed) { showLogin(); return; }
+    if (!authData.authed) { clearAuthToken(); showLogin(); return; }
     if (authData.engineer) setCurrentEngineer(authData.engineer);
 
     // Auth valid — immediately show app with skeletons (hide splash + login)
@@ -2130,7 +2149,7 @@ async function loadData() {
     showLeadSkeletons();
 
     // Fetch sites
-    const sitesRes = await fetch('/api/sites');
+    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
     sites = sitesData.sites || [];
@@ -2227,6 +2246,7 @@ function sortBy(col) {
 }
 
 function renderTable() {
+  const isAdm = currentEngineer?.role === 'admin';
   const q = document.getElementById('searchInput').value.toLowerCase();
   let filtered = sites.filter(s => {
     const match = (s.name + s.contact + s.phone + s.equipment + s.location + s.nextAction + s.notes)
@@ -2277,7 +2297,7 @@ function renderTable() {
       else if (d <= soon) dueCls = 'soon';
     }
     return `<tr onclick="viewClient('${s.id}')">
-      <td><div class="site-name">${esc(s.name || '—')}</div></td>
+      <td><div class="site-name">${esc(s.name || '—')}</div>${isAdm && s.engineerName ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(s.engineerName)}</div>` : ''}</td>
       <td>
         <div class="contact-info">
           <div class="contact-name">${esc(s.contact || '—')}</div>
@@ -2486,9 +2506,9 @@ async function processAI() {
     const payload = { text };
     if (attachedImage) payload.image = { mimeType: attachedImage.mimeType, data: attachedImage.data };
     if (attachedAudio) payload.audio = { mimeType: attachedAudio.mimeType, data: attachedAudio.data };
-    const res = await fetch('/api/extract', {
+    const res = await fetch(FUNCTIONS_BASE + '/extract', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
     });
 
@@ -2792,7 +2812,8 @@ function toggleTheme() {
 applyTheme(localStorage.getItem('pwt_theme') || 'dark');
 
 async function logout() {
-  await fetch('/api/auth', { method: 'DELETE' });
+  await fetch(FUNCTIONS_BASE + '/auth', { method: 'DELETE', headers: authHeaders() }).catch(() => {});
+  clearAuthToken();
   sites = [];
   clients = [];
   currentEngineer = null;
@@ -3061,7 +3082,7 @@ function onProductNameChange() {
 
 async function loadClients() {
   try {
-    const res = await fetch('/api/clients');
+    const res = await fetch(FUNCTIONS_BASE + '/clients', { headers: authHeaders() });
     if (res.status === 401) { showLogin(); return; }
     const data = await res.json();
     clients = data.clients || [];
@@ -3166,9 +3187,9 @@ async function saveClient() {
   };
   if (!client.name) { showToast('Client name is required', 'error'); return; }
   try {
-    const res = await fetch('/api/clients', {
+    const res = await fetch(FUNCTIONS_BASE + '/clients', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ client }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
@@ -3184,7 +3205,7 @@ async function deleteClient() {
   if (!editingClientId) return;
   if (!confirm('Delete this client and all their products?')) return;
   try {
-    const res = await fetch('/api/clients?id=' + encodeURIComponent(editingClientId), { method: 'DELETE' });
+    const res = await fetch(FUNCTIONS_BASE + '/clients?id=' + encodeURIComponent(editingClientId), { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) throw new Error('Delete failed');
     closeModal('clientModal');
     showToast('Client deleted', 'success');
@@ -3210,7 +3231,7 @@ async function showCustomerDetailView(id) {
 
   // Load products
   try {
-    const res = await fetch('/api/products?clientId=' + encodeURIComponent(id));
+    const res = await fetch(FUNCTIONS_BASE + '/products?clientId=' + encodeURIComponent(id), { headers: authHeaders() });
     if (res.ok) {
       const data = await res.json();
       currentClientProducts = data.products || [];
@@ -3429,9 +3450,9 @@ async function saveProduct() {
   };
   if (!product.productName) { showToast('Product name is required', 'error'); return; }
   try {
-    const res = await fetch('/api/products', {
+    const res = await fetch(FUNCTIONS_BASE + '/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ product }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
@@ -3448,7 +3469,7 @@ async function deleteProduct() {
   if (!editingProductId) return;
   if (!confirm('Delete this product?')) return;
   try {
-    const res = await fetch('/api/products?id=' + encodeURIComponent(editingProductId), { method: 'DELETE' });
+    const res = await fetch(FUNCTIONS_BASE + '/products?id=' + encodeURIComponent(editingProductId), { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) throw new Error('Delete failed');
     closeModal('productModal');
     showToast('Product deleted', 'success');
@@ -3462,9 +3483,9 @@ async function deleteProduct() {
 async function convertToClient(siteId) {
   if (!confirm('Convert this lead to a client?')) return;
   try {
-    const res = await fetch('/api/convert', {
+    const res = await fetch(FUNCTIONS_BASE + '/convert', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ siteId }),
     });
     const data = await res.json();
@@ -3477,6 +3498,8 @@ async function convertToClient(siteId) {
       }
       throw new Error(data.error || 'Conversion failed');
     }
+    // Remove the lead from local array
+    sites = sites.filter(s => s.id !== siteId);
     showToast('Lead converted to client!', 'success');
     location.hash = 'customer/' + data.clientId;
   } catch (err) {
@@ -3491,7 +3514,7 @@ let editingEngineerId = null;
 async function loadEngineers() {
   if (currentEngineer?.role !== 'admin') return;
   try {
-    const res = await fetch('/api/engineers');
+    const res = await fetch(FUNCTIONS_BASE + '/engineers', { headers: authHeaders() });
     if (!res.ok) return;
     const data = await res.json();
     engineers = data.engineers || [];
@@ -3576,9 +3599,9 @@ async function saveEngineer() {
   if (!engineer.username) { showToast('Username is required', 'error'); return; }
   if (!editingEngineerId && !engineer.password) { showToast('Password is required for new engineer', 'error'); return; }
   try {
-    const res = await fetch('/api/engineers', {
+    const res = await fetch(FUNCTIONS_BASE + '/engineers', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ engineer }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
@@ -3602,8 +3625,8 @@ async function showEngineerDetailView(id) {
   let engLeads = [], engClients = [], totalLowStock = 0;
   try {
     const [leadsRes, clientsRes] = await Promise.all([
-      fetch('/api/sites?engineerId=' + encodeURIComponent(id)),
-      fetch('/api/clients?engineerId=' + encodeURIComponent(id)),
+      fetch(FUNCTIONS_BASE + '/sites?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
+      fetch(FUNCTIONS_BASE + '/clients?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
     ]);
     if (leadsRes.ok) {
       const ld = await leadsRes.json();
@@ -3807,9 +3830,9 @@ window.addEventListener('hashchange', handleRoute);
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && isAuthenticated) {
     try {
-      const r = await fetch('/api/auth');
+      const r = await fetch(FUNCTIONS_BASE + '/auth', { headers: authHeaders() });
       const d = await r.json();
-      if (!d.authed) showLogin();
+      if (!d.authed) { clearAuthToken(); showLogin(); }
     } catch {}
   }
 });

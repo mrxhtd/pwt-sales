@@ -1,0 +1,91 @@
+import { corsHeaders } from '../_shared/cors.ts';
+import { getSession } from '../_shared/auth.ts';
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return json({ error: 'Method not allowed' }, 405);
+  }
+
+  const session = await getSession(req);
+  if (!session) return json({ error: 'Unauthorized' }, 401);
+
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!apiKey) {
+    return json({ error: 'GEMINI_API_KEY not configured' }, 500);
+  }
+
+  const body = await req.json();
+  const text = body?.text?.trim() || '';
+  const image = body?.image;
+  const audio = body?.audio;
+
+  if (!text && !image && !audio) {
+    return json({ error: 'Provide text, image, or audio' }, 400);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const sources: string[] = [];
+  if (text) sources.push('the text description below');
+  if (audio) sources.push('the attached audio (spoken description, English or Arabic)');
+  if (image) sources.push('the attached image (equipment, a nameplate, a business card, or written notes — read any visible text)');
+
+  let prompt = `Extract sales site fields from ${sources.join(' AND ')}.
+
+Fields:
+- name: site/company name
+- contact: person's name
+- phone: phone number
+- equipment: type of equipment (boiler, chiller, AC, etc.)
+- specs: technical specs like tons, kW, capacity
+- location: city or area
+- status: one of ["Potential Prospect", "Qualified Prospect", "Interested Prospect", "Hot Prospect"] — infer from context. Potential = just identified, Qualified = fits criteria, Interested = engaged/responsive, Hot = ready to close
+- nextAction: what needs to be done next
+- dueDate: YYYY-MM-DD if mentioned (e.g. "next week" = 7 days from ${today}, "tomorrow" = tomorrow), otherwise ""
+- notes: any other relevant info
+
+If a field is not mentioned, return "".`;
+
+  if (text) prompt += `\n\nText description: "${text}"`;
+
+  const parts: any[] = [{ text: prompt }];
+  if (image) parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
+  if (audio) parts.push({ inline_data: { mime_type: audio.mimeType, data: audio.data } });
+
+  try {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      },
+    );
+
+    const data = await r.json();
+    if (!r.ok) {
+      return json({ error: data?.error?.message || 'Gemini API error' }, r.status);
+    }
+
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(raw);
+    return json(parsed);
+  } catch (err) {
+    console.error('extract edge function error:', err);
+    return json({ error: 'Extraction failed' }, 500);
+  }
+});
