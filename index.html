@@ -7,6 +7,7 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
 <script>
   // Set theme before first paint to avoid flash
   (function() {
@@ -1524,6 +1525,9 @@
     <div class="logo-text">PWT <span>SALES</span></div>
   </a>
   <div class="header-actions">
+    <button class="btn btn-ghost" id="notifToggleBtn" onclick="toggleNotifications()" aria-label="Toggle notifications" title="Enable notifications" style="color:var(--text-muted)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+    </button>
     <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
     <button class="btn btn-ghost" id="exportBtn" onclick="exportExcel()" aria-label="Export Excel">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -1958,6 +1962,101 @@ function authHeaders(extra = {}) {
   return h;
 }
 
+// ─── PUSH NOTIFICATIONS ────────────────────────────────
+const VAPID_PUBLIC_KEY = 'BL29sKEeP1_D13VrWxN8kEMe8UbJi7Jkq8Jeo1Tn9ehdx4ZHo08rlqugwhZyaUXg3pNYW5KzZNIeaht2VwLkvfw';
+let swRegistration = null;
+
+async function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    swRegistration = await navigator.serviceWorker.register('/sw.js');
+    console.log('SW registered');
+  } catch (err) {
+    console.error('SW registration failed:', err);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+async function subscribeToPush() {
+  if (!swRegistration) return;
+  try {
+    let sub = await swRegistration.pushManager.getSubscription();
+    if (!sub) {
+      sub = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    // Send subscription to backend
+    await fetch(FUNCTIONS_BASE + '/subscribe', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ subscription: sub.toJSON() }),
+    });
+    localStorage.setItem('pwt_push_enabled', '1');
+    showToast('Notifications enabled', 'success');
+    updateNotifButton();
+  } catch (err) {
+    console.error('Push subscribe error:', err);
+    if (Notification.permission === 'denied') {
+      showToast('Notifications blocked. Enable in browser settings.', 'error');
+    } else {
+      showToast('Could not enable notifications', 'error');
+    }
+  }
+}
+
+async function unsubscribeFromPush() {
+  if (!swRegistration) return;
+  try {
+    const sub = await swRegistration.pushManager.getSubscription();
+    if (sub) {
+      const endpoint = sub.endpoint;
+      await sub.unsubscribe();
+      await fetch(FUNCTIONS_BASE + '/subscribe', {
+        method: 'DELETE',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ endpoint }),
+      });
+    }
+    localStorage.removeItem('pwt_push_enabled');
+    showToast('Notifications disabled', 'success');
+    updateNotifButton();
+  } catch (err) {
+    console.error('Push unsubscribe error:', err);
+  }
+}
+
+function toggleNotifications() {
+  if (localStorage.getItem('pwt_push_enabled') === '1') {
+    unsubscribeFromPush();
+  } else {
+    subscribeToPush();
+  }
+}
+
+function updateNotifButton() {
+  const btn = document.getElementById('notifToggleBtn');
+  if (!btn) return;
+  const enabled = localStorage.getItem('pwt_push_enabled') === '1';
+  btn.innerHTML = enabled
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  btn.title = enabled ? 'Disable notifications' : 'Enable notifications';
+  btn.style.color = enabled ? 'var(--accent)' : 'var(--text-muted)';
+}
+
+// Register SW on page load
+initServiceWorker();
+
 // ─── DATA ───────────────────────────────────────────────
 let sites = [];
 let clients = [];
@@ -1976,6 +2075,8 @@ function setCurrentEngineer(eng) {
   // Show/hide admin features
   const adminEls = document.querySelectorAll('.admin-only');
   adminEls.forEach(el => el.style.display = eng?.role === 'admin' ? '' : 'none');
+  // Update notification bell state
+  updateNotifButton();
 }
 
 const STATUS_MAP = {
