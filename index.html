@@ -1525,8 +1525,9 @@
     <div class="logo-text">PWT <span>SALES</span></div>
   </a>
   <div class="header-actions">
-    <button class="btn btn-ghost" id="notifToggleBtn" onclick="toggleNotifications()" aria-label="Toggle notifications" title="Enable notifications" style="color:var(--text-muted)">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+    <button class="btn btn-ghost" id="notifToggleBtn" onclick="toggleNotifications()" aria-label="Toggle notifications" title="Enable notifications">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      <span class="btn-label" id="notifLabel">Notify</span>
     </button>
     <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
     <button class="btn btn-ghost" id="exportBtn" onclick="exportExcel()" aria-label="Export CSV">
@@ -2047,11 +2048,18 @@ function updateNotifButton() {
   const btn = document.getElementById('notifToggleBtn');
   if (!btn) return;
   const enabled = localStorage.getItem('pwt_push_enabled') === '1';
-  btn.innerHTML = enabled
-    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>'
-    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  const svg = enabled
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  btn.innerHTML = svg + '<span class="btn-label">' + (enabled ? 'On' : 'Notify') + '</span>';
   btn.title = enabled ? 'Disable notifications' : 'Enable notifications';
-  btn.style.color = enabled ? 'var(--accent)' : 'var(--text-muted)';
+  if (enabled) {
+    btn.classList.remove('btn-ghost');
+    btn.classList.add('btn-primary');
+  } else {
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-ghost');
+  }
 }
 
 // Register SW on page load
