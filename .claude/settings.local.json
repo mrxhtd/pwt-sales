@@ -4,7 +4,16 @@
       "Bash(vercel --prod)",
       "Bash(curl -s https://sales-tracker-one-lyart.vercel.app)",
       "Bash(awk '/<\\\\/script>/{print NR\": \"$0}' /Users/joe/Desktop/pwt/index.html)",
-      "Bash(vercel env *)"
+      "Bash(vercel env *)",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__find",
+      "mcp__Claude_in_Chrome__get_page_text",
+      "mcp__Claude_in_Chrome__read_page",
+      "Bash(vercel --prod --yes)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -s https://sales-tracker-one-lyart.vercel.app/)"
     ]
   }
 }

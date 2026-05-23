@@ -1,12 +1,10 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+const MAX_FIELD = 2000; // max chars per text field
+function clamp(s: string, max = MAX_FIELD): string {
+  return (s || '').slice(0, max);
 }
 
 function rowToSite(r: any) {
@@ -34,12 +32,14 @@ const VALID_STATUSES = [
 ];
 
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   const session = await getSession(req);
-  if (!session) return json({ error: 'Unauthorized' }, 401);
+  if (!session) return json({ error: 'Unauthorized' }, 401, cors);
 
   const { engineerId, role } = session;
   const isAdmin = role === 'admin';
@@ -63,53 +63,78 @@ Deno.serve(async (req: Request) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return json({ sites: (data || []).map(rowToSite) });
+      return json({ sites: (data || []).map(rowToSite) }, 200, cors);
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
       const s = body?.site;
-      if (!s?.id) return json({ error: 'Missing site.id' }, 400);
+      if (!s?.id) return json({ error: 'Missing site.id' }, 400, cors);
 
       if (s.status && !VALID_STATUSES.includes(s.status)) {
-        return json({ error: 'Invalid status' }, 400);
+        return json({ error: 'Invalid status' }, 400, cors);
       }
 
+      // Check if record exists — separate insert vs update
       const { data: existing } = await supabase
         .from('sites')
         .select('engineer_id')
         .eq('id', s.id)
         .single();
 
-      if (existing && existing.engineer_id !== engineerId && !isAdmin) {
-        return json({ error: 'Not your site' }, 403);
+      if (existing) {
+        // UPDATE — verify ownership
+        if (existing.engineer_id !== engineerId && !isAdmin) {
+          return json({ error: 'Not your site' }, 403, cors);
+        }
+        const { error } = await supabase
+          .from('sites')
+          .update({
+            name: clamp(s.name),
+            contact: clamp(s.contact),
+            phone: clamp(s.phone, 50),
+            equipment: clamp(s.equipment),
+            specs: clamp(s.specs),
+            location: clamp(s.location),
+            status: s.status || '',
+            next_action: clamp(s.nextAction),
+            due_date: s.dueDate || '',
+            notes: clamp(s.notes, 5000),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', s.id);
+        if (error) throw error;
+      } else {
+        // INSERT — server generates ID to prevent IDOR
+        const newId = crypto.randomUUID();
+        const { error } = await supabase
+          .from('sites')
+          .insert({
+            id: newId,
+            name: clamp(s.name),
+            contact: clamp(s.contact),
+            phone: clamp(s.phone, 50),
+            equipment: clamp(s.equipment),
+            specs: clamp(s.specs),
+            location: clamp(s.location),
+            status: s.status || '',
+            next_action: clamp(s.nextAction),
+            due_date: s.dueDate || '',
+            notes: clamp(s.notes, 5000),
+            engineer_id: engineerId,
+            updated_at: new Date().toISOString(),
+          });
+        if (error) throw error;
+        return json({ ok: true, id: newId }, 200, cors);
       }
 
-      const { error } = await supabase
-        .from('sites')
-        .upsert({
-          id: s.id,
-          name: s.name || '',
-          contact: s.contact || '',
-          phone: s.phone || '',
-          equipment: s.equipment || '',
-          specs: s.specs || '',
-          location: s.location || '',
-          status: s.status || '',
-          next_action: s.nextAction || '',
-          due_date: s.dueDate || '',
-          notes: s.notes || '',
-          engineer_id: existing ? existing.engineer_id : engineerId,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      if (error) throw error;
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
     if (req.method === 'DELETE') {
       const url = new URL(req.url);
       const id = url.searchParams.get('id');
-      if (!id) return json({ error: 'Missing id' }, 400);
+      if (!id) return json({ error: 'Missing id' }, 400, cors);
 
       if (!isAdmin) {
         const { data: existing } = await supabase
@@ -118,18 +143,25 @@ Deno.serve(async (req: Request) => {
           .eq('id', id)
           .single();
         if (existing && existing.engineer_id !== engineerId) {
-          return json({ error: 'Not your site' }, 403);
+          return json({ error: 'Not your site' }, 403, cors);
         }
       }
 
       const { error } = await supabase.from('sites').delete().eq('id', id);
       if (error) throw error;
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
-    return json({ error: 'Method not allowed' }, 405);
+    return json({ error: 'Method not allowed' }, 405, cors);
   } catch (err) {
     console.error('sites edge function error:', err);
-    return json({ error: 'Server error' }, 500);
+    return json({ error: 'Server error' }, 500, cors);
   }
 });
+
+function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}

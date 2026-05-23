@@ -1,11 +1,16 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
 
-function json(body: unknown, status = 200) {
+const MAX_FIELD = 2000;
+function clamp(s: string, max = MAX_FIELD): string {
+  return (s || '').slice(0, max);
+}
+
+function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
@@ -41,12 +46,14 @@ async function verifyClientOwnership(
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   const session = await getSession(req);
-  if (!session) return json({ error: 'Unauthorized' }, 401);
+  if (!session) return json({ error: 'Unauthorized' }, 401, cors);
 
   const { engineerId, role } = session;
   const isAdmin = role === 'admin';
@@ -57,10 +64,10 @@ Deno.serve(async (req: Request) => {
     if (req.method === 'GET') {
       const url = new URL(req.url);
       const clientId = url.searchParams.get('clientId');
-      if (!clientId) return json({ error: 'Missing clientId' }, 400);
+      if (!clientId) return json({ error: 'Missing clientId' }, 400, cors);
 
       const owns = await verifyClientOwnership(supabase, clientId, engineerId, isAdmin);
-      if (!owns) return json({ error: 'Not your client' }, 403);
+      if (!owns) return json({ error: 'Not your client' }, 403, cors);
 
       const { data, error } = await supabase
         .from('client_products')
@@ -69,47 +76,76 @@ Deno.serve(async (req: Request) => {
         .order('category')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return json({ products: (data || []).map(rowToProduct) });
+      return json({ products: (data || []).map(rowToProduct) }, 200, cors);
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
       const p = body?.product;
-      if (!p?.id || !p?.clientId) return json({ error: 'Missing product.id or product.clientId' }, 400);
+      if (!p?.clientId) return json({ error: 'Missing product.clientId' }, 400, cors);
 
       if (p.category && !VALID_CATS.includes(p.category)) {
-        return json({ error: 'Invalid category' }, 400);
+        return json({ error: 'Invalid category' }, 400, cors);
       }
       if (p.status && !VALID_STATUSES.includes(p.status)) {
-        return json({ error: 'Invalid status' }, 400);
+        return json({ error: 'Invalid status' }, 400, cors);
       }
 
       const owns = await verifyClientOwnership(supabase, p.clientId, engineerId, isAdmin);
-      if (!owns) return json({ error: 'Not your client' }, 403);
+      if (!owns) return json({ error: 'Not your client' }, 403, cors);
 
-      const { error } = await supabase
-        .from('client_products')
-        .upsert({
-          id: p.id,
-          client_id: p.clientId,
-          category: p.category || 'boilers',
-          product_name: p.productName || '',
-          model: p.model || '',
-          quantity: p.quantity || 1,
-          install_date: p.installDate || null,
-          next_maintenance_date: p.nextMaintenanceDate || null,
-          status: p.status || 'active',
-          notes: p.notes || '',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      if (error) throw error;
-      return json({ ok: true });
+      // Check if product exists — separate insert vs update
+      const productId = p.id;
+      const { data: existing } = productId
+        ? await supabase.from('client_products').select('id, client_id').eq('id', productId).single()
+        : { data: null };
+
+      if (existing) {
+        // UPDATE
+        const { error } = await supabase
+          .from('client_products')
+          .update({
+            category: p.category || 'boilers',
+            product_name: clamp(p.productName),
+            model: clamp(p.model, 500),
+            quantity: Math.min(Math.max(parseInt(p.quantity) || 1, 1), 99999),
+            install_date: p.installDate || null,
+            next_maintenance_date: p.nextMaintenanceDate || null,
+            status: p.status || 'active',
+            notes: clamp(p.notes, 5000),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', productId);
+        if (error) throw error;
+      } else {
+        // INSERT — server generates ID
+        const newId = crypto.randomUUID();
+        const { error } = await supabase
+          .from('client_products')
+          .insert({
+            id: newId,
+            client_id: p.clientId,
+            category: p.category || 'boilers',
+            product_name: clamp(p.productName),
+            model: clamp(p.model, 500),
+            quantity: Math.min(Math.max(parseInt(p.quantity) || 1, 1), 99999),
+            install_date: p.installDate || null,
+            next_maintenance_date: p.nextMaintenanceDate || null,
+            status: p.status || 'active',
+            notes: clamp(p.notes, 5000),
+            updated_at: new Date().toISOString(),
+          });
+        if (error) throw error;
+        return json({ ok: true, id: newId }, 200, cors);
+      }
+
+      return json({ ok: true }, 200, cors);
     }
 
     if (req.method === 'DELETE') {
       const url = new URL(req.url);
       const id = url.searchParams.get('id');
-      if (!id) return json({ error: 'Missing id' }, 400);
+      if (!id) return json({ error: 'Missing id' }, 400, cors);
 
       if (!isAdmin) {
         const { data: product } = await supabase
@@ -119,18 +155,18 @@ Deno.serve(async (req: Request) => {
           .single();
         if (product) {
           const owns = await verifyClientOwnership(supabase, product.client_id, engineerId, isAdmin);
-          if (!owns) return json({ error: 'Not your client' }, 403);
+          if (!owns) return json({ error: 'Not your client' }, 403, cors);
         }
       }
 
       const { error } = await supabase.from('client_products').delete().eq('id', id);
       if (error) throw error;
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
-    return json({ error: 'Method not allowed' }, 405);
+    return json({ error: 'Method not allowed' }, 405, cors);
   } catch (err) {
     console.error('products edge function error:', err);
-    return json({ error: 'Server error' }, 500);
+    return json({ error: 'Server error' }, 500, cors);
   }
 });

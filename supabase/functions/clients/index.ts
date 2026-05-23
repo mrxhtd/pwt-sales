@@ -1,11 +1,16 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
 
-function json(body: unknown, status = 200) {
+const MAX_FIELD = 2000;
+function clamp(s: string, max = MAX_FIELD): string {
+  return (s || '').slice(0, max);
+}
+
+function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
@@ -31,12 +36,14 @@ function rowToClient(r: any) {
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   const session = await getSession(req);
-  if (!session) return json({ error: 'Unauthorized' }, 401);
+  if (!session) return json({ error: 'Unauthorized' }, 401, cors);
 
   const { engineerId, role } = session;
   const isAdmin = role === 'admin';
@@ -61,7 +68,6 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Get product counts, categories, and low stock per client
       const clientIds = (data || []).map((c: any) => c.id);
       const productSummary: Record<string, { count: number; lowStock: number; cats: Set<string> }> = {};
       let totalLowStock = 0;
@@ -96,46 +102,68 @@ Deno.serve(async (req: Request) => {
         });
       });
 
-      return json({ clients, totalLowStock });
+      return json({ clients, totalLowStock }, 200, cors);
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
       const c = body?.client;
-      if (!c?.id) return json({ error: 'Missing client.id' }, 400);
+      if (!c?.id) return json({ error: 'Missing client.id' }, 400, cors);
 
+      // Check if record exists — separate insert vs update
       const { data: existing } = await supabase
         .from('clients')
         .select('engineer_id')
         .eq('id', c.id)
         .single();
 
-      if (existing && existing.engineer_id !== engineerId && !isAdmin) {
-        return json({ error: 'Not your client' }, 403);
+      if (existing) {
+        // UPDATE — verify ownership
+        if (existing.engineer_id !== engineerId && !isAdmin) {
+          return json({ error: 'Not your client' }, 403, cors);
+        }
+        const { error } = await supabase
+          .from('clients')
+          .update({
+            name: clamp(c.name),
+            contact: clamp(c.contact),
+            phone: clamp(c.phone, 50),
+            location: clamp(c.location),
+            equipment: clamp(c.equipment),
+            specs: clamp(c.specs),
+            notes: clamp(c.notes, 5000),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', c.id);
+        if (error) throw error;
+      } else {
+        // INSERT — server generates ID
+        const newId = crypto.randomUUID();
+        const { error } = await supabase
+          .from('clients')
+          .insert({
+            id: newId,
+            name: clamp(c.name),
+            contact: clamp(c.contact),
+            phone: clamp(c.phone, 50),
+            location: clamp(c.location),
+            equipment: clamp(c.equipment),
+            specs: clamp(c.specs),
+            notes: clamp(c.notes, 5000),
+            engineer_id: engineerId,
+            updated_at: new Date().toISOString(),
+          });
+        if (error) throw error;
+        return json({ ok: true, id: newId }, 200, cors);
       }
 
-      const { error } = await supabase
-        .from('clients')
-        .upsert({
-          id: c.id,
-          name: c.name || '',
-          contact: c.contact || '',
-          phone: c.phone || '',
-          location: c.location || '',
-          equipment: c.equipment || '',
-          specs: c.specs || '',
-          notes: c.notes || '',
-          engineer_id: existing ? existing.engineer_id : engineerId,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      if (error) throw error;
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
     if (req.method === 'DELETE') {
       const url = new URL(req.url);
       const id = url.searchParams.get('id');
-      if (!id) return json({ error: 'Missing id' }, 400);
+      if (!id) return json({ error: 'Missing id' }, 400, cors);
 
       if (!isAdmin) {
         const { data: existing } = await supabase
@@ -144,18 +172,20 @@ Deno.serve(async (req: Request) => {
           .eq('id', id)
           .single();
         if (existing && existing.engineer_id !== engineerId) {
-          return json({ error: 'Not your client' }, 403);
+          return json({ error: 'Not your client' }, 403, cors);
         }
       }
 
+      // Delete products first, then client (cascade)
+      await supabase.from('client_products').delete().eq('client_id', id);
       const { error } = await supabase.from('clients').delete().eq('id', id);
       if (error) throw error;
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
-    return json({ error: 'Method not allowed' }, 405);
+    return json({ error: 'Method not allowed' }, 405, cors);
   } catch (err) {
     console.error('clients edge function error:', err);
-    return json({ error: 'Server error' }, 500);
+    return json({ error: 'Server error' }, 500, cors);
   }
 });

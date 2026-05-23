@@ -19,10 +19,9 @@ async function maybeCleanExpired() {
 }
 
 export async function getSession(req: Request): Promise<{ engineerId: string; fullName: string; role: string } | null> {
-  // Read token from Authorization: Bearer <token>
   const authHeader = req.headers.get('authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return null;
+  if (!token || token.length < 32 || token.length > 128) return null;
 
   const supabase = getSupabase();
 
@@ -53,10 +52,17 @@ export async function getSession(req: Request): Promise<{ engineerId: string; fu
   };
 }
 
+/** Generate a cryptographically strong 256-bit session token */
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** Create a new session for an engineer, return the token */
 export async function createSession(engineerId: string): Promise<string> {
   const supabase = getSupabase();
-  const token = crypto.randomUUID();
+  const token = generateToken();
   const now = new Date();
   const expires = new Date(now.getTime() + MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
 

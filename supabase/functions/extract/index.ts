@@ -1,37 +1,41 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSession } from '../_shared/auth.ts';
 
-function json(body: unknown, status = 200) {
+const MAX_TEXT = 10000; // max chars for text input
+
+function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
+    return json({ error: 'Method not allowed' }, 405, cors);
   }
 
   const session = await getSession(req);
-  if (!session) return json({ error: 'Unauthorized' }, 401);
+  if (!session) return json({ error: 'Unauthorized' }, 401, cors);
 
   const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) {
-    return json({ error: 'GEMINI_API_KEY not configured' }, 500);
+    return json({ error: 'GEMINI_API_KEY not configured' }, 500, cors);
   }
 
   const body = await req.json();
-  const text = body?.text?.trim() || '';
+  const text = (body?.text?.trim() || '').slice(0, MAX_TEXT);
   const image = body?.image;
   const audio = body?.audio;
 
   if (!text && !image && !audio) {
-    return json({ error: 'Provide text, image, or audio' }, 400);
+    return json({ error: 'Provide text, image, or audio' }, 400, cors);
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -65,10 +69,13 @@ If a field is not mentioned, return "".`;
 
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           contents: [{ parts }],
           generationConfig: { responseMimeType: 'application/json' },
@@ -78,14 +85,28 @@ If a field is not mentioned, return "".`;
 
     const data = await r.json();
     if (!r.ok) {
-      return json({ error: data?.error?.message || 'Gemini API error' }, r.status);
+      return json({ error: data?.error?.message || 'Gemini API error' }, r.status, cors);
     }
 
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const parsed = JSON.parse(raw);
-    return json(parsed);
+    // Validate JSON before returning
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return json({ error: 'Failed to parse AI response' }, 500, cors);
+    }
+
+    // Only return expected fields
+    const safe: Record<string, string> = {};
+    const allowedFields = ['name', 'contact', 'phone', 'equipment', 'specs', 'location', 'status', 'nextAction', 'dueDate', 'notes'];
+    for (const f of allowedFields) {
+      safe[f] = typeof parsed[f] === 'string' ? parsed[f].slice(0, 2000) : '';
+    }
+
+    return json(safe, 200, cors);
   } catch (err) {
     console.error('extract edge function error:', err);
-    return json({ error: 'Extraction failed' }, 500);
+    return json({ error: 'Extraction failed' }, 500, cors);
   }
 });
