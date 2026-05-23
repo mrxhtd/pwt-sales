@@ -2970,9 +2970,20 @@ function viewEngineer(id) {
 }
 
 function backToList() {
-  if (activeTab === 'clients') location.hash = 'clients';
-  else if (activeTab === 'engineers') location.hash = 'engineers';
-  else location.hash = '';
+  // Always ensure detail page is dismissed
+  showListView();
+  if (activeTab === 'clients') {
+    location.hash = 'clients';
+    showClientSkeletons();
+    loadClients();
+  } else if (activeTab === 'engineers') {
+    location.hash = 'engineers';
+    showEngineerSkeletons();
+    loadEngineers();
+  } else {
+    location.hash = '';
+  }
+  window.scrollTo(0, 0);
 }
 
 function showListView() {
