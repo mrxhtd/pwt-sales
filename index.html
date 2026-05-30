@@ -3812,164 +3812,473 @@ function buildCustomerDetailHTML(c) {
   `;
 }
 
-/* ---------- GENERATE QUOTE ---------- */
-let quoteItems = [];
+/* ============ GENERATE QUOTE (full PWT proposal document) ============ */
+let quoteItems = [];           // [{ code, usage, price, kg }]
 let quoteForName = '';
+
+const SYSTEM_LABELS = {
+  boiler: 'Boiler',
+  cooling_tower: 'Cooling Tower',
+  chiller: 'Chiller',
+  swimming_pool: 'Swimming Pool',
+};
+
+// Per-product technical text used on the "Product Specifications" pages.
+const PRODUCT_SPECS = {
+  'PW-142': { title: 'INTERNAL TREATMENT – PW PRESERVE-142', usage: 'Scale inhibitor',
+    desc: 'PW PRESERVE-142 is a mixture of corrosion inhibitors based on tannin, silicate & phosphate for closed cooling systems and chilled water circuits using distilled or fresh water. PW Preserve-142 deposits a microfilm on metal surfaces.',
+    app: 'Can be fed as such or diluted. Non-volatile. Not for attemperation. The chemical should be continuously fed to the boiler feed water tank.' },
+  'PW-40': { title: 'INTERNAL TREATMENT – PW-40 (phosphate program)', usage: 'Scale inhibitor',
+    desc: 'PW-40 is an organic polymer, phosphate-based compound, used for boilers under any pressure up to 40 bars to precipitate calcium and magnesium hardness as phosphate sludge.',
+    app: 'PW-40 is normally maintained within set limits in boiler water. The optimum treatment dosage depends on operating conditions such as boiler pressure and the chemical characteristics of the treated water.' },
+  'PW-10': { title: 'INTERNAL TREATMENT – PW-10 (Oxygen scavenger – corrosion inhibitor)', usage: 'Oxygen scavenger',
+    desc: 'PW-10 is a catalyzed sodium sulfite-based compound; it reacts with oxygen to form sodium sulfate. The catalyst is incorporated to speed the reaction.',
+    app: 'Can be fed as such or diluted. Non-volatile. Not for attemperation. On oxygen: 7.8 ppm of SO3 for 1 ppm of oxygen on feed water. Recommended residual sulfite on boiler water: 30-60 ppm.' },
+  'PW-80': { title: 'INTERNAL TREATMENT – PW-80 (Steam-condensate pH control)', usage: 'Steam treatment',
+    desc: 'PW-80 is based on neutralizing amine derivatives. It is designed to adjust the pH of condensate systems; it has a very high capability for absorbing CO2, exceptionally good thermal stability and is completely water soluble.',
+    app: 'PW-80 can be dosed with usual feeding equipment, either into the boiler feed water or directly into the boiler drum, or into the steam line. The dose required depends on the existing amount of carbon dioxide in steam, condensate recovery and pH value of condensate.' },
+};
+
+const QUOTE_FOOTER = `Address: Zahraa Smouha Tower, No. 12 Nader Mosque St., Smouha, Alexandria, Egypt &nbsp;|&nbsp; Factory &amp; Warehouse: Borg Alarab - Industrial Zone (4)<br>Tel / Fax: 002 034280687 &nbsp;|&nbsp; Mob: 01002274773 - 01005710128 &nbsp;|&nbsp; pwt@pwtchem.com - info@pwtinternational.com &nbsp;|&nbsp; www.pwtinternational.com`;
 
 function fmtMoney(n) {
   return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function fmtInt(n) {
+  return (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
 
-// Quote for a CLIENT — pre-fills rows from the client's product list
+/* ---- offer number series (per-device counter) ---- */
+function nextOfferNumber() {
+  let n = parseInt(localStorage.getItem('pwt_quote_next_offer') || '', 10);
+  if (!Number.isFinite(n)) {
+    const start = prompt('Set the starting Offer number (e.g. 16632):', '16632');
+    n = parseInt(start, 10);
+    if (!Number.isFinite(n)) n = 1;
+  }
+  return n;
+}
+function bumpOfferNumber(used) {
+  const n = parseInt(used, 10);
+  if (Number.isFinite(n)) localStorage.setItem('pwt_quote_next_offer', String(n + 1));
+}
+function offerSuffix(d) {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${mm} ${yy}`;
+}
+
+/* ---- amount in words (EGP) ---- */
+function numberToWordsEGP(num) {
+  num = Math.round(Number(num) || 0);
+  if (num === 0) return 'Zero EGP';
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  function below1000(n) {
+    let s = '';
+    if (n >= 100) { s += ones[Math.floor(n / 100)] + ' Hundred'; n %= 100; if (n) s += ' And '; }
+    if (n >= 20) { s += tens[Math.floor(n / 10)]; n %= 10; if (n) s += '-' + ones[n]; }
+    else if (n > 0) s += ones[n];
+    return s;
+  }
+  const units = [[1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand'], [1, '']];
+  let words = '';
+  for (const [val, name] of units) {
+    if (num >= val) {
+      const chunk = Math.floor(num / val);
+      num %= val;
+      words += below1000(chunk) + (name ? ' ' + name : '');
+      if (num) words += ' And ';
+    }
+  }
+  return 'Only ' + words.trim().replace(/\s+/g, ' ') + ' EGP';
+}
+
+/* ---- open from a CLIENT ---- */
 function openQuoteModal() {
   const c = clients.find(x => x.id === viewingClientId);
   if (!c) return;
   quoteForName = c.name || 'Client';
   quoteItems = currentClientProducts.map(p => ({
-    name: p.productName || 'Unnamed product',
-    qty: Number(p.quantity) || 1,
-    price: 0,
+    code: p.productName || '', usage: '', price: 0, kg: Number(p.quantity) || 0,
   }));
-  if (quoteItems.length === 0) quoteItems.push({ name: '', qty: 1, price: 0 });
-  showQuoteModal();
+  showQuoteModal({
+    company: c.name || '', businessLine: c.businessLine || '',
+    attName: c.attName || (c.contact ? ('Eng. / ' + c.contact) : ''), attTitle: c.attTitle || '',
+  });
 }
 
-// Quote for a LEAD/prospect — starts empty (leads have no product list), seeded with their equipment if any
+/* ---- open from a LEAD / prospect ---- */
 function openLeadQuote(id) {
   const s = sites.find(x => x.id === id);
   if (!s) return;
   quoteForName = s.name || 'Lead';
   quoteItems = [];
-  if (s.equipment) quoteItems.push({ name: s.equipment + (s.specs ? ' (' + s.specs + ')' : ''), qty: 1, price: 0 });
-  if (quoteItems.length === 0) quoteItems.push({ name: '', qty: 1, price: 0 });
-  showQuoteModal();
+  showQuoteModal({
+    company: s.name || '', businessLine: s.businessLine || '',
+    attName: s.attName || (s.contact ? ('Eng. / ' + s.contact) : ''), attTitle: s.attTitle || '',
+    system: s.equipment && /cool/i.test(s.equipment) ? 'cooling_tower' : (s.equipment && /chill/i.test(s.equipment) ? 'chiller' : (s.equipment && /pool/i.test(s.equipment) ? 'swimming_pool' : 'boiler')),
+  });
 }
 
-function showQuoteModal() {
-  document.getElementById('quoteClientName').textContent = quoteForName;
-  document.getElementById('quoteDate').textContent = formatDate(new Date().toISOString());
+function showQuoteModal(meta) {
+  meta = meta || {};
+  const today = new Date();
+  const valid = new Date(today); valid.setDate(valid.getDate() + 9);
+  const iso = d => d.toISOString().slice(0, 10);
+  const offer = nextOfferNumber();
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal('q_company', meta.company || quoteForName);
+  setVal('q_businessLine', meta.businessLine || '');
+  if (meta.system) setVal('q_system', meta.system);
+  setVal('q_date', iso(today));
+  setVal('q_offerNo', `${offer} ${offerSuffix(today)}`);
+  setVal('q_worksheetNo', `${offer} -${offerSuffix(today)} International`);
+  setVal('q_attName', meta.attName || '');
+  setVal('q_attTitle', meta.attTitle || '');
+  setVal('q_validTill', iso(valid));
+  setVal('q_deliveryDays', '10');
+  populateQuoteProductList();
+  if (quoteItems.length === 0) quoteItems.push({ code: '', usage: '', price: 0, kg: 0 });
   renderQuoteItems();
   document.getElementById('quoteModal').classList.add('open');
+}
+
+function populateQuoteProductList() {
+  const dl = document.getElementById('quoteProductList');
+  if (!dl || dl.childElementCount) return;
+  let opts = '';
+  for (const cat of Object.keys(PRODUCT_CATALOG)) {
+    for (const p of PRODUCT_CATALOG[cat]) {
+      opts += `<option value="${esc(p.code)}">${esc(p.code)} — ${esc(p.desc)}</option>`;
+    }
+  }
+  dl.innerHTML = opts;
+}
+
+function onQuoteSystemChange() { /* reserved: could swap default products by system */ }
+
+function catalogDescFor(code) {
+  const key = (code || '').split(':')[0].trim();
+  for (const cat of Object.keys(PRODUCT_CATALOG)) {
+    const found = PRODUCT_CATALOG[cat].find(p => p.code === key);
+    if (found) return found.desc;
+  }
+  return '';
 }
 
 function renderQuoteItems() {
   const body = document.getElementById('quoteItemsBody');
   if (quoteItems.length === 0) {
-    body.innerHTML = '<div class="quote-empty">No items yet. Tap “Add item” to build the quote.</div>';
-    document.getElementById('quoteTotal').textContent = '0.00';
-    return;
-  }
-  body.innerHTML = quoteItems.map((it, i) => `
-    <div class="quote-row">
-      <div class="quote-row-top">
-        <input type="text" class="quote-input quote-name-input" value="${esc(it.name)}" placeholder="Product / item name" oninput="updateQuoteItem(${i},'name',this.value)" aria-label="Item name">
-        <button type="button" class="quote-remove" onclick="removeQuoteRow(${i})" aria-label="Remove item">
+    body.innerHTML = '<div class="quote-empty">No products yet. Tap “Add product”.</div>';
+  } else {
+    body.innerHTML = quoteItems.map((it, i) => `
+      <div class="quote-irow">
+        <input class="qprod" type="text" list="quoteProductList" value="${esc(it.code)}" placeholder="PW-40" oninput="updateQuoteItem(${i},'code',this.value)" aria-label="Product code">
+        <input type="text" value="${esc(it.usage)}" placeholder="usage" oninput="updateQuoteItem(${i},'usage',this.value)" aria-label="Usage">
+        <input type="number" min="0" step="0.01" value="${it.price || ''}" placeholder="0" oninput="updateQuoteItem(${i},'price',this.value)" aria-label="Price per Kg">
+        <input type="number" min="0" step="0.01" value="${it.kg || ''}" placeholder="0" oninput="updateQuoteItem(${i},'kg',this.value)" aria-label="Kg per year">
+        <div class="qcost" id="quoteLine${i}">${fmtMoney((it.price||0)*(it.kg||0))}</div>
+        <button type="button" class="quote-remove" onclick="removeQuoteRow(${i})" aria-label="Remove">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
-      </div>
-      <div class="quote-row-grid">
-        <div>
-          <div class="quote-field-label">Qty</div>
-          <input type="number" min="0" value="${it.qty}" class="quote-input quote-num-input" oninput="updateQuoteItem(${i},'qty',this.value)" aria-label="Quantity">
-        </div>
-        <div>
-          <div class="quote-field-label">Unit Price</div>
-          <input type="number" min="0" step="0.01" value="${it.price || ''}" placeholder="0.00" class="quote-input quote-num-input" oninput="updateQuoteItem(${i},'price',this.value)" aria-label="Unit price">
-        </div>
-        <div>
-          <div class="quote-field-label">Total</div>
-          <div class="quote-line-total" id="quoteLine${i}">${fmtMoney(it.qty * it.price)}</div>
-        </div>
-      </div>
-    </div>
-  `).join('');
+      </div>`).join('');
+  }
   recalcQuoteTotal();
 }
 
 function updateQuoteItem(i, field, val) {
-  quoteItems[i][field] = field === 'name' ? val : (Number(val) || 0);
-  if (field !== 'name') {
-    document.getElementById('quoteLine' + i).textContent = fmtMoney(quoteItems[i].qty * quoteItems[i].price);
+  if (field === 'code') {
+    quoteItems[i].code = val;
+    if (!quoteItems[i].usage) {
+      const k = (val || '').split(':')[0].trim();
+      const spec = PRODUCT_SPECS[k];
+      if (spec) quoteItems[i].usage = spec.usage;
+    }
+  } else if (field === 'usage') {
+    quoteItems[i].usage = val;
+  } else {
+    quoteItems[i][field] = Number(val) || 0;
+  }
+  if (field === 'price' || field === 'kg') {
+    document.getElementById('quoteLine' + i).textContent = fmtMoney((quoteItems[i].price||0)*(quoteItems[i].kg||0));
     recalcQuoteTotal();
   }
 }
 
-function addQuoteRow() {
-  quoteItems.push({ name: '', qty: 1, price: 0 });
-  renderQuoteItems();
-}
+function addQuoteRow() { quoteItems.push({ code: '', usage: '', price: 0, kg: 0 }); renderQuoteItems(); }
+function removeQuoteRow(i) { quoteItems.splice(i, 1); renderQuoteItems(); }
 
-function removeQuoteRow(i) {
-  quoteItems.splice(i, 1);
-  renderQuoteItems();
-}
-
+function quoteTotal() { return quoteItems.reduce((s, it) => s + (it.price||0)*(it.kg||0), 0); }
 function recalcQuoteTotal() {
-  const total = quoteItems.reduce((s, it) => s + it.qty * it.price, 0);
-  document.getElementById('quoteTotal').textContent = fmtMoney(total);
+  const t = quoteTotal();
+  document.getElementById('quoteTotal').textContent = fmtMoney(t);
+  const w = document.getElementById('quoteTotalWords');
+  if (w) w.textContent = t > 0 ? numberToWordsEGP(t) : '';
 }
 
 function quoteValidItems() {
-  return quoteItems.filter(it => (it.name || '').trim() !== '' && (it.qty * it.price) >= 0 && (it.qty > 0));
+  return quoteItems.filter(it => (it.code || '').trim() !== '');
+}
+
+function gatherQuoteMeta() {
+  const g = id => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
+  const dateVal = g('q_date');
+  const d = dateVal ? new Date(dateVal) : new Date();
+  const ord = n => { const s = ['th','st','nd','rd'], v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); };
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateLong = `${months[d.getMonth()]} ${ord(d.getDate())}, ${d.getFullYear()}`;
+  const validRaw = g('q_validTill');
+  const validFmt = validRaw ? validRaw.split('-').reverse().join(' / ') : '';
+  const sys = document.getElementById('q_system') ? document.getElementById('q_system').value : 'boiler';
+  return {
+    company: g('q_company') || quoteForName, businessLine: g('q_businessLine'),
+    system: sys, systemLabel: SYSTEM_LABELS[sys] || 'Boiler',
+    offerNo: g('q_offerNo'), worksheetNo: g('q_worksheetNo'),
+    dateLong, attName: g('q_attName'), attTitle: g('q_attTitle'),
+    prepName: g('q_prepName'), prepTitle: g('q_prepTitle'),
+    validTill: validFmt, deliveryDays: g('q_deliveryDays') || '10',
+  };
 }
 
 function buildQuoteText() {
-  const lines = [];
-  lines.push('PWT International — Quotation');
-  lines.push('For: ' + quoteForName);
-  lines.push('Date: ' + formatDate(new Date().toISOString()));
-  lines.push('');
+  const m = gatherQuoteMeta();
+  const lines = [`PWT INTERNATIONAL — ${m.systemLabel} Water Treatment`, `Company: ${m.company}`, `Offer No.: ${m.offerNo}`, `Date: ${m.dateLong}`, ''];
   let total = 0;
   for (const it of quoteValidItems()) {
-    const lt = it.qty * it.price;
-    total += lt;
-    lines.push(`${it.name}  —  ${it.qty} × ${fmtMoney(it.price)} = ${fmtMoney(lt)} EGP`);
+    const cost = (it.price||0)*(it.kg||0); total += cost;
+    lines.push(`${it.code} — ${it.usage || ''} : ${fmtMoney(it.price)} EGP/Kg × ${fmtInt(it.kg)} Kg = ${fmtMoney(cost)} EGP`);
   }
-  lines.push('');
-  lines.push('Total: ' + fmtMoney(total) + ' EGP');
+  lines.push('', `Total: ${fmtMoney(total)} EGP`, numberToWordsEGP(total));
   return lines.join('\n');
 }
 
 function copyQuote() {
-  if (quoteValidItems().length === 0) { showToast('Add at least one item with a name', 'error'); return; }
+  if (quoteValidItems().length === 0) { showToast('Add at least one product', 'error'); return; }
   navigator.clipboard.writeText(buildQuoteText())
     .then(() => showToast('Quote copied to clipboard'))
     .catch(() => showToast('Could not copy', 'error'));
 }
 
+/* ---- the full multi-page printable document ---- */
 function printQuote() {
   const items = quoteValidItems();
-  if (items.length === 0) { showToast('Add at least one item with a name', 'error'); return; }
-  let total = 0;
-  const rows = items.map(it => {
-    const lt = it.qty * it.price; total += lt;
-    return `<tr><td>${esc(it.name)}</td>
-      <td style="text-align:center;">${it.qty}</td>
-      <td style="text-align:right;">${fmtMoney(it.price)}</td>
-      <td style="text-align:right;">${fmtMoney(lt)}</td></tr>`;
+  if (items.length === 0) { showToast('Add at least one product', 'error'); return; }
+  const m = gatherQuoteMeta();
+  const total = quoteTotal();
+  const logo = location.origin + '/logoo.png';
+
+  const offerRows = items.map(it => {
+    const cost = (it.price||0)*(it.kg||0);
+    return `<tr><td>${esc(it.code)}</td><td>${esc(it.usage || catalogDescFor(it.code))}</td>
+      <td class="r">${fmtMoney(it.price)}</td><td class="r">${fmtInt(it.kg)}</td><td class="r">${fmtMoney(cost)}</td></tr>`;
   }).join('');
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotation — ${esc(quoteForName)}</title>
-    <style>
-      body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:40px;}
-      h1{font-size:22px;margin:0 0 4px;}
-      .meta{color:#666;font-size:13px;margin-bottom:24px;}
-      table{width:100%;border-collapse:collapse;font-size:13px;}
-      th{text-align:left;border-bottom:2px solid #333;padding:8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
-      td{border-bottom:1px solid #ddd;padding:10px 6px;}
-      .total{text-align:right;font-size:18px;font-weight:700;margin-top:20px;}
-    </style></head><body>
-    <h1>PWT International — Quotation</h1>
-    <div class="meta">For: <strong>${esc(quoteForName)}</strong> &nbsp;·&nbsp; Date: ${formatDate(new Date().toISOString())}</div>
-    <table><thead><tr><th>Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Total</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-    <div class="total">Total: ${fmtMoney(total)} EGP</div>
-    </body></html>`;
+
+  const specBlocks = items.map(it => {
+    const k = (it.code || '').split(':')[0].trim();
+    const spec = PRODUCT_SPECS[k];
+    const title = spec ? spec.title : `INTERNAL TREATMENT – ${esc(it.code)}`;
+    const desc = spec ? spec.desc : (catalogDescFor(it.code) || '');
+    const app = spec ? spec.app : 'The chemical should be continuously fed to the system at the recommended dosage.';
+    return `<div class="spec"><h3>${esc(title)}</h3><p><b>General description:</b> ${esc(desc)}</p><p><b>Application and dosage:</b> ${esc(app)}</p></div>`;
+  }).join('');
+
+  const refRows = [
+    ['Asyut Oil Refining Company (ASORC)', 'Cooling tower: 3500 m³ · Boiler steam generator: 3 × 25 ton/hr · Waste water unit: 2000 m³/day'],
+    ['Aluminum Company of Egypt (EGYPTALUM)', 'Cooling towers: up to 5000 m³'],
+    ['Alexandria National Refining & Petrochemical Co (ANRPC)', 'Cooling tower: 5000 m³ · Boiler steam generator: 100 ton/hr'],
+    ['Egyptian Linear Alkyl Benzene Company (ELAB)', 'Cooling tower: 2500 m³ · Boiler steam generator: 20 ton/hr'],
+    ['Alexandria Petroleum Company', 'Boiler steam generator: 2 × 70 ton/hr'],
+    ['MISR Petroleum Co.', 'Boiler steam generators: 2×20, 3×12, 2×8 ton/hr'],
+    ['Sidi Kerir Petrochemical Company (SIDPEC)', 'Chilled water system · Thermal desalination: 5000 m³/day'],
+    ['NILE SUGAR', 'Boiler steam generators: 100 & 60 ton/hr'],
+    ['Egyptian Ethylene & Derivatives Company (ETHYDCO)', 'Closed loop water system: 4 × 80 m³'],
+  ].map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('');
+
+  const waterRows = ['pH','Conductivity (µs/cm)','Total Dissolved Solids [TDS]','Total Hardness as CaCO3','Calcium Hardness as CaCO3','Magnesium Hardness as CaCO3','P-Alkalinity as CaCO3','M-Alkalinity as CaCO3','OH-Alkalinity as CaCO3','Chloride [Cl]','Ortho Phosphate [PO4]','Iron [Fe]','Oxy scavenger (Sulfite)','Cycle of concentration']
+    .map(e => `<tr><td>${esc(e)}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+
+  const page = (cls, inner) => `<section class="page ${cls||''}">${inner}<div class="pfoot">${QUOTE_FOOTER}</div></section>`;
+  const band = `<div class="band"><img src="${logo}" class="logo" onerror="this.style.display='none'"><div class="bandtxt"><div class="bt1">PWT INTERNATIONAL</div><div class="bt2">Water Treatment Technologies</div></div></div>`;
+
+  const cover = `<section class="page cover">
+    ${band}
+    <div class="cover-mid">
+      <div class="cdoc">- TECHNICAL ECONOMICAL PROPOSAL -</div>
+      <div class="csub">${esc(m.systemLabel)} Water Treatment Chemicals and Service</div>
+      <div class="ccompany">${esc(m.company)}</div>
+      <div class="cline">${esc(m.businessLine)}</div>
+      <div class="cmeta">
+        <div><b>Offer No.:</b> ${esc(m.offerNo)}</div>
+        <div><b>Work sheet no:</b> ${esc(m.worksheetNo)}</div>
+        <div class="cdate">${esc(m.dateLong)}</div>
+        <div class="catt"><b>Kind att.:</b> ${esc(m.attName)} ${m.attTitle ? '<span class="paren">((' + esc(m.attTitle) + '))</span>' : ''}</div>
+        <div class="cprep"><b>Prepared by:</b> ${esc(m.prepName)} ${m.prepTitle ? '<span class="paren">((' + esc(m.prepTitle) + '))</span>' : ''}</div>
+      </div>
+      <div class="cslogan">Think Globally Act Locally</div>
+    </div>
+    <div class="pfoot">${QUOTE_FOOTER}</div>
+  </section>`;
+
+  const letter = page('', `${band}
+    <p>Dear Sir,</p>
+    <p>On behalf of PWT INTERNATIONAL, we would like to take this opportunity to thank ${esc(m.company)} for inviting our organization to be involved in your quotation on ${esc(m.systemLabel)} Water Treatment program supplying.</p>
+    <p>Our intention with this proposal is to demonstrate our commitment to improving overall value and delivering the best cost/performance ratio. We are encouraged that our proposal will serve to meet this exciting goal.</p>
+    <p>We believe that by choosing PWT INTERNATIONAL as a valued partner, you will gain superior account management capabilities, numerous new and fresh ideas for process improvement and cost reduction, and experienced personnel to manage your chemical needs.</p>
+    <p>Thank you again for the opportunity to work with you and your organization on this important initiative. We confirm our availability to discuss our proposal at your convenience and we thank you for your kind cooperation.</p>
+    <p>Sincerely yours,<br><b>PWT INTERNATIONAL</b><br>Best regards</p>`);
+
+  const index = page('', `<h2>INDEX</h2>
+    <ol class="idx">
+      <li>Goal of the Proposal<ul><li>Introduction to PWT</li><li>Mission – Service goals</li></ul></li>
+      <li>System Knowledge<ul><li>Technical data</li><li>Water chemistry</li><li>Operational issues</li></ul></li>
+      <li>Technical Proposal – PWT Treatment Chemicals<ul><li>Treatment technologies</li><li>Product specifications and application guidelines</li><li>Efficiency check</li></ul></li>
+      <li>Program Summary</li>
+      <li>Opportunities for Improvements</li>
+      <li>Requirements for Success of the Treatment</li>
+      <li>Technical Service and Monitoring</li>
+      <li>Conclusion – References</li>
+    </ol>`);
+
+  const goal = page('', `<h2>1) Goal of the Proposal</h2>
+    <h3>a. Introduction to PWT INTERNATIONAL</h3>
+    <p>PWT INTERNATIONAL is a water, waste water and chemical treatment company operating in this field for a long time. PWT INTERNATIONAL is well aware of the different industry sectors where water (water, steam, ice…) or water-related equipment (boilers, coolers…) represents a vital role of its existence and success.</p>
+    <p>PWT INTERNATIONAL is a registered trademark, well known in the Egyptian market. PWT INTERNATIONAL is ISO 9001 – 14001 – OHSAS 18001 certified; our chemicals undergo strict quality-control documentation and follow-up from the moment raw material is delivered to our facility until the product is dispatched to the client.</p>
+    <p>PWT INTERNATIONAL – Chemical Trading · Technical Services · Consultancy services · Waste treatment services · Oil field and chemical cleaning services · Water treatment chemicals manufacturing.</p>
+    <h3>b. Mission – Service goals</h3>
+    <p><i>We, the associates of PWT INTERNATIONAL, will excel in providing measurable, cost-effective improvements in output and quality for our customers by delivering customer-specific services and products and the creative application of knowledge.</i></p>`);
+
+  const systemKnow = page('', `<h2>2) System Knowledge</h2>
+    <h3>a. Technical data</h3>
+    <p class="muted">System specifications for ${esc(m.company)} (to be completed from the site survey).</p>
+    <table class="g"><tbody>
+      <tr><td>Number of units</td><td></td></tr>
+      <tr><td>Type</td><td></td></tr>
+      <tr><td>Capacity</td><td></td></tr>
+      <tr><td>Operating pressure</td><td></td></tr>
+      <tr><td>Make-up water</td><td></td></tr>
+      <tr><td>Feed water</td><td></td></tr>
+      <tr><td>Operating time</td><td></td></tr>
+    </tbody></table>
+    <h3>b. Water chemistry</h3>
+    <table class="g"><thead><tr><th>Element to be analyzed</th><th>Make-up</th><th>Feed water</th><th>Boiler 1</th><th>Boiler 2</th></tr></thead>
+    <tbody>${waterRows}</tbody></table>`);
+
+  const technical = page('', `<h2>3) Technical Proposal – PWT Treatment Chemicals</h2>
+    <h3>a. Treatment technologies</h3>
+    <p>PWT INTERNATIONAL proposes the following chemical program for your ${esc(m.systemLabel.toLowerCase())} system, selected to minimize corrosion and deposits while maintaining steam/water quality and reducing operating cost.</p>
+    <h3>b. Product specifications and application guidelines</h3>
+    ${specBlocks}`);
+
+  const offer = page('', `<h2>Economical Offer</h2>
+    <table class="g offer"><thead><tr><th>Product</th><th>Usage</th><th class="r">Price EGP/Kg</th><th class="r">Kg / year</th><th class="r">Cost / year</th></tr></thead>
+      <tbody>${offerRows}</tbody>
+      <tfoot><tr><td colspan="4" class="r">Total</td><td class="r">${fmtMoney(total)}</td></tr></tfoot>
+    </table>
+    <p class="words">${esc(numberToWordsEGP(total))}</p>
+    <h3>Commercial terms</h3>
+    <ul class="terms">
+      <li>This price is excluding 14% value added tax.</li>
+      <li>Delivery: within ${esc(m.deliveryDays)} days from receiving P.O.</li>
+      <li>This offer is valid till ${esc(m.validTill)}.</li>
+      <li>Payment: cash against delivery or according to a specific agreement.</li>
+    </ul>`);
+
+  const requirements = page('', `<h2>4) Requirements for Success of the Treatment</h2>
+    <p>The PWT INTERNATIONAL treatment program is designed to prevent corrosion and scaling while decreasing loss of water and chemicals and reducing the risk of tube failures and unplanned shutdowns. Its success depends on:</p>
+    <ul>
+      <li>Correct selection of treatment chemicals and their dosages</li>
+      <li>Application of the correct dosages</li>
+      <li>Control of the water chemistry within the preset limits</li>
+      <li>Monitoring the treatment chemical actives in the water and taking corrective actions as necessary</li>
+      <li>Implementation of the agreed service</li>
+    </ul>`);
+
+  const monitoring = page('', `<h2>5) Technical Service and Monitoring</h2>
+    <p>Control ranges (according to British Standard 2486/1997):</p>
+    <table class="g"><thead><tr><th>Parameter</th><th>Range</th></tr></thead><tbody>
+      <tr><td>Boiler feed water – pH</td><td>&gt; 8.5</td></tr>
+      <tr><td>Boiler feed water – Total Hardness (ppm CaCO3)</td><td>&lt; 2</td></tr>
+      <tr><td>Boiler water – pH</td><td>10.5 – 12</td></tr>
+      <tr><td>Boiler water – P Alkalinity</td><td>&lt; 700</td></tr>
+      <tr><td>Boiler water – Hydroxide Alkalinity (ppm CaCO3)</td><td>350 – 500</td></tr>
+      <tr><td>Boiler water – Conductivity (µmho/cm)</td><td>&lt; 7000</td></tr>
+      <tr><td>Boiler water – T.D.S</td><td>&lt; 3500</td></tr>
+      <tr><td>Boiler water – Sulfite residual (ppm)</td><td>30 – 60</td></tr>
+      <tr><td>Boiler water – Phosphate residual (ppm)</td><td>20 – 40</td></tr>
+      <tr><td>Condensate – pH</td><td>8.3 – 9.5</td></tr>
+    </tbody></table>
+    <h3>Service plan</h3>
+    <p>At start-up our service engineer will be present for a full day to train your staff. We then implement our "Customer Care" program with regular monitoring visits; at the end of each visit a written service report (analyses, recommendations, stock data) is submitted, and a business review is held at year end.</p>`);
+
+  const reportSheet = page('', `<h2>Report Sheet</h2>
+    <div class="rsmeta"><span>Client: ${esc(m.company)}</span><span>Date: ____ / ____ / ${new Date().getFullYear()}</span><span>Contact person: ________________</span></div>
+    <h3>Operation conditions</h3>
+    <table class="g"><tbody>
+      <tr><td>Boiler manufacture</td><td></td><td>Feed T.K temperature</td><td></td></tr>
+      <tr><td>Operating pressure</td><td></td><td>Fuel type</td><td></td></tr>
+      <tr><td>Boiler capacity</td><td></td><td>Blow down rate</td><td></td></tr>
+      <tr><td>Hrs of operation</td><td></td><td>Condensate return</td><td></td></tr>
+    </tbody></table>
+    <h3>Water analysis</h3>
+    <table class="g"><thead><tr><th>Element</th><th>Make-up</th><th>Feed water</th><th>Blow down</th><th>Condensate</th></tr></thead>
+    <tbody>${waterRows}</tbody></table>`);
+
+  const references = page('', `<h2>6) Conclusion – References</h2>
+    <p>Below are some of the most important sites where PWT INTERNATIONAL has performed industrial water treatment:</p>
+    <table class="g"><thead><tr><th>Client</th><th>Utility</th></tr></thead><tbody>${refRows}</tbody></table>`);
+
+  const css = `
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: #1c2733; }
+    .page { position: relative; width: 210mm; min-height: 297mm; padding: 18mm 16mm 24mm; page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .band { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #1769b0; padding-bottom: 8px; margin-bottom: 16px; }
+    .band .logo { height: 46px; }
+    .bandtxt .bt1 { font-weight: 800; color: #14507f; letter-spacing: 1px; font-size: 16px; }
+    .bandtxt .bt2 { color: #6b7c8d; font-size: 11px; }
+    h2 { color: #14507f; font-size: 18px; border-left: 4px solid #1769b0; padding-left: 10px; margin: 0 0 12px; }
+    h3 { color: #1769b0; font-size: 13px; margin: 14px 0 6px; }
+    p, li { font-size: 12px; line-height: 1.55; }
+    .muted { color: #7a8a99; font-style: italic; }
+    table.g { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+    table.g th, table.g td { border: 1px solid #c7d3de; padding: 6px 8px; font-size: 11px; text-align: left; }
+    table.g th { background: #eaf2f9; color: #14507f; }
+    table.g .r, td.r, th.r { text-align: right; }
+    table.offer tfoot td { font-weight: 800; background: #eaf2f9; color: #14507f; font-size: 12px; }
+    .words { font-style: italic; font-weight: 700; color: #14507f; }
+    ul.terms li { margin-bottom: 4px; }
+    .idx { font-size: 13px; line-height: 1.8; }
+    .idx ul { font-size: 12px; color: #46586a; }
+    .spec { border: 1px solid #dce6ef; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+    .spec h3 { margin-top: 0; }
+    .rsmeta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+    .pfoot { position: absolute; left: 16mm; right: 16mm; bottom: 10mm; border-top: 1px solid #c7d3de; padding-top: 6px; font-size: 8px; color: #7a8a99; text-align: center; line-height: 1.5; }
+    .cover .cover-mid { text-align: center; margin-top: 22mm; }
+    .cdoc { font-weight: 800; color: #14507f; letter-spacing: 1px; font-size: 16px; }
+    .csub { color: #46586a; font-size: 13px; margin: 6px 0 26px; }
+    .ccompany { font-size: 30px; font-weight: 800; color: #1c2733; }
+    .cline { font-size: 14px; color: #6b7c8d; letter-spacing: 1px; margin-bottom: 26px; }
+    .cmeta { text-align: left; max-width: 150mm; margin: 0 auto; font-size: 12px; line-height: 1.9; }
+    .cmeta .cdate { text-align: right; color: #46586a; }
+    .cmeta .paren { color: #1769b0; }
+    .cslogan { margin-top: 30mm; color: #1769b0; font-weight: 700; letter-spacing: 2px; }
+  `;
+
+  const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotation — ${esc(m.company)} — ${esc(m.offerNo)}</title><style>${css}</style></head>
+  <body>
+    ${cover}${letter}${index}${goal}${systemKnow}${technical}${offer}${requirements}${monitoring}${reportSheet}${references}
+  </body></html>`;
+
   const w = window.open('', '_blank');
   if (!w) { showToast('Allow pop-ups to print the quote', 'error'); return; }
-  w.document.write(html);
+  w.document.write(doc);
   w.document.close();
   w.focus();
-  setTimeout(() => w.print(), 350);
+  bumpOfferNumber(parseInt(m.offerNo, 10));
+  setTimeout(() => w.print(), 400);
 }
 
 function buildProductFilterPillsHTML() {
