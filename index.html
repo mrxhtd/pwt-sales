@@ -952,29 +952,47 @@
   .field-full { grid-column: 1 / -1; }
 
   /* QUOTE MODAL */
-  .quote-body { padding: 18px 24px; max-height: 62vh; overflow-y: auto; }
-  .quote-head-row, .quote-row {
-    display: grid;
-    grid-template-columns: 1fr 64px 96px 90px;
-    gap: 8px;
-    align-items: center;
+  .quote-body { padding: 18px 24px; max-height: 60vh; overflow-y: auto; }
+  .quote-row {
+    padding: 12px; margin-bottom: 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--bg);
   }
-  .quote-head-row {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--text-muted); padding: 0 0 8px; border-bottom: 1px solid var(--border);
+  .quote-row-top { display: flex; align-items: center; gap: 8px; }
+  .quote-row-grid {
+    display: grid; grid-template-columns: 1fr 1fr auto;
+    gap: 8px; align-items: center; margin-top: 8px;
   }
-  .quote-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .quote-field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 3px; }
   .quote-input {
-    width: 100%; padding: 7px 8px; text-align: center;
+    width: 100%; padding: 8px 9px;
     border: 1px solid var(--border); border-radius: 8px;
-    background: var(--bg); color: var(--text);
+    background: var(--card, var(--bg)); color: var(--text);
     font-family: 'DM Mono', monospace; font-size: 13px;
   }
+  .quote-name-input { font-family: 'Syne', sans-serif; font-weight: 600; }
+  .quote-num-input { text-align: center; }
   .quote-input:focus { outline: none; border-color: var(--blue); }
-  .quote-row-total { text-align: right; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600; }
+  .quote-line-total { text-align: right; min-width: 90px; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600; }
+  .quote-remove {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 7px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .quote-remove:hover { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+  .quote-add-btn {
+    width: 100%; padding: 11px; margin: 2px 0 4px;
+    border: 1px dashed var(--border); border-radius: var(--radius-lg);
+    background: transparent; color: var(--blue); cursor: pointer;
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .quote-add-btn:hover { background: var(--blue-dim, rgba(59,130,246,0.1)); }
+  .quote-empty { text-align: center; padding: 18px 0; color: var(--text-muted); font-size: 13px; }
   .quote-grand {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 0 2px; font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+    padding: 14px 0 2px; margin-top: 6px; border-top: 1px solid var(--border);
+    font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
   }
   .quote-grand strong { color: var(--blue); }
 
@@ -1952,7 +1970,7 @@
     <div class="quote-body">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
       <div>
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Client</div>
+        <div id="quoteForLabel" style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Quote for</div>
         <div id="quoteClientName" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;"></div>
       </div>
       <div style="text-align:right;">
@@ -1960,13 +1978,11 @@
         <div id="quoteDate" style="font-family:'DM Mono',monospace;font-size:13px;"></div>
       </div>
     </div>
-    <div class="quote-head-row">
-      <div>Product</div>
-      <div style="text-align:center;">Qty</div>
-      <div style="text-align:center;">Unit Price</div>
-      <div style="text-align:right;">Total</div>
-    </div>
     <div id="quoteItemsBody"></div>
+    <button type="button" class="quote-add-btn" onclick="addQuoteRow()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Add item
+    </button>
     <div class="quote-grand">
       <span>Total</span>
       <span><strong id="quoteTotal">0.00</strong> EGP</span>
@@ -3298,6 +3314,10 @@ function showDetailView(id) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Convert to Client
         </button>` : ''}
+        <button class="btn btn-primary" onclick="openLeadQuote('${s.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
+          Generate Quote
+        </button>
         <button class="btn btn-ghost" onclick="openEdit('${s.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           Edit
@@ -3706,21 +3726,39 @@ function buildCustomerDetailHTML(c) {
 
 /* ---------- GENERATE QUOTE ---------- */
 let quoteItems = [];
+let quoteForName = '';
 
 function fmtMoney(n) {
   return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Quote for a CLIENT — pre-fills rows from the client's product list
 function openQuoteModal() {
   const c = clients.find(x => x.id === viewingClientId);
   if (!c) return;
+  quoteForName = c.name || 'Client';
   quoteItems = currentClientProducts.map(p => ({
     name: p.productName || 'Unnamed product',
-    category: CATEGORY_LABELS[p.category] || p.category || '',
     qty: Number(p.quantity) || 1,
     price: 0,
   }));
-  document.getElementById('quoteClientName').textContent = c.name || 'Client';
+  if (quoteItems.length === 0) quoteItems.push({ name: '', qty: 1, price: 0 });
+  showQuoteModal();
+}
+
+// Quote for a LEAD/prospect — starts empty (leads have no product list), seeded with their equipment if any
+function openLeadQuote(id) {
+  const s = sites.find(x => x.id === id);
+  if (!s) return;
+  quoteForName = s.name || 'Lead';
+  quoteItems = [];
+  if (s.equipment) quoteItems.push({ name: s.equipment + (s.specs ? ' (' + s.specs + ')' : ''), qty: 1, price: 0 });
+  if (quoteItems.length === 0) quoteItems.push({ name: '', qty: 1, price: 0 });
+  showQuoteModal();
+}
+
+function showQuoteModal() {
+  document.getElementById('quoteClientName').textContent = quoteForName;
   document.getElementById('quoteDate').textContent = formatDate(new Date().toISOString());
   renderQuoteItems();
   document.getElementById('quoteModal').classList.add('open');
@@ -3729,28 +3767,53 @@ function openQuoteModal() {
 function renderQuoteItems() {
   const body = document.getElementById('quoteItemsBody');
   if (quoteItems.length === 0) {
-    body.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:13px;">This client has no products yet. Add products first to quote them.</div>';
+    body.innerHTML = '<div class="quote-empty">No items yet. Tap “Add item” to build the quote.</div>';
     document.getElementById('quoteTotal').textContent = '0.00';
     return;
   }
   body.innerHTML = quoteItems.map((it, i) => `
     <div class="quote-row">
-      <div>
-        <div style="font-weight:600;font-size:13px;">${esc(it.name)}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${esc(it.category)}</div>
+      <div class="quote-row-top">
+        <input type="text" class="quote-input quote-name-input" value="${esc(it.name)}" placeholder="Product / item name" oninput="updateQuoteItem(${i},'name',this.value)" aria-label="Item name">
+        <button type="button" class="quote-remove" onclick="removeQuoteRow(${i})" aria-label="Remove item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-      <input type="number" min="0" value="${it.qty}" class="quote-input" oninput="updateQuoteItem(${i},'qty',this.value)" aria-label="Quantity">
-      <input type="number" min="0" step="0.01" value="${it.price || ''}" placeholder="0.00" class="quote-input" oninput="updateQuoteItem(${i},'price',this.value)" aria-label="Unit price">
-      <div class="quote-row-total" id="quoteLine${i}">${fmtMoney(it.qty * it.price)}</div>
+      <div class="quote-row-grid">
+        <div>
+          <div class="quote-field-label">Qty</div>
+          <input type="number" min="0" value="${it.qty}" class="quote-input quote-num-input" oninput="updateQuoteItem(${i},'qty',this.value)" aria-label="Quantity">
+        </div>
+        <div>
+          <div class="quote-field-label">Unit Price</div>
+          <input type="number" min="0" step="0.01" value="${it.price || ''}" placeholder="0.00" class="quote-input quote-num-input" oninput="updateQuoteItem(${i},'price',this.value)" aria-label="Unit price">
+        </div>
+        <div>
+          <div class="quote-field-label">Total</div>
+          <div class="quote-line-total" id="quoteLine${i}">${fmtMoney(it.qty * it.price)}</div>
+        </div>
+      </div>
     </div>
   `).join('');
   recalcQuoteTotal();
 }
 
 function updateQuoteItem(i, field, val) {
-  quoteItems[i][field] = Number(val) || 0;
-  document.getElementById('quoteLine' + i).textContent = fmtMoney(quoteItems[i].qty * quoteItems[i].price);
-  recalcQuoteTotal();
+  quoteItems[i][field] = field === 'name' ? val : (Number(val) || 0);
+  if (field !== 'name') {
+    document.getElementById('quoteLine' + i).textContent = fmtMoney(quoteItems[i].qty * quoteItems[i].price);
+    recalcQuoteTotal();
+  }
+}
+
+function addQuoteRow() {
+  quoteItems.push({ name: '', qty: 1, price: 0 });
+  renderQuoteItems();
+}
+
+function removeQuoteRow(i) {
+  quoteItems.splice(i, 1);
+  renderQuoteItems();
 }
 
 function recalcQuoteTotal() {
@@ -3758,15 +3821,18 @@ function recalcQuoteTotal() {
   document.getElementById('quoteTotal').textContent = fmtMoney(total);
 }
 
+function quoteValidItems() {
+  return quoteItems.filter(it => (it.name || '').trim() !== '' && (it.qty * it.price) >= 0 && (it.qty > 0));
+}
+
 function buildQuoteText() {
-  const c = clients.find(x => x.id === viewingClientId);
   const lines = [];
   lines.push('PWT International — Quotation');
-  lines.push('Client: ' + (c?.name || ''));
+  lines.push('For: ' + quoteForName);
   lines.push('Date: ' + formatDate(new Date().toISOString()));
   lines.push('');
   let total = 0;
-  for (const it of quoteItems) {
+  for (const it of quoteValidItems()) {
     const lt = it.qty * it.price;
     total += lt;
     lines.push(`${it.name}  —  ${it.qty} × ${fmtMoney(it.price)} = ${fmtMoney(lt)} EGP`);
@@ -3777,25 +3843,24 @@ function buildQuoteText() {
 }
 
 function copyQuote() {
-  if (quoteItems.length === 0) { showToast('No products to quote', 'error'); return; }
-  const text = buildQuoteText();
-  navigator.clipboard.writeText(text)
+  if (quoteValidItems().length === 0) { showToast('Add at least one item with a name', 'error'); return; }
+  navigator.clipboard.writeText(buildQuoteText())
     .then(() => showToast('Quote copied to clipboard'))
     .catch(() => showToast('Could not copy', 'error'));
 }
 
 function printQuote() {
-  if (quoteItems.length === 0) { showToast('No products to quote', 'error'); return; }
-  const c = clients.find(x => x.id === viewingClientId);
+  const items = quoteValidItems();
+  if (items.length === 0) { showToast('Add at least one item with a name', 'error'); return; }
   let total = 0;
-  const rows = quoteItems.map(it => {
+  const rows = items.map(it => {
     const lt = it.qty * it.price; total += lt;
-    return `<tr><td>${esc(it.name)}<br><span style="color:#888;font-size:11px;">${esc(it.category)}</span></td>
+    return `<tr><td>${esc(it.name)}</td>
       <td style="text-align:center;">${it.qty}</td>
       <td style="text-align:right;">${fmtMoney(it.price)}</td>
       <td style="text-align:right;">${fmtMoney(lt)}</td></tr>`;
   }).join('');
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotation — ${esc(c?.name || '')}</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotation — ${esc(quoteForName)}</title>
     <style>
       body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:40px;}
       h1{font-size:22px;margin:0 0 4px;}
@@ -3806,8 +3871,8 @@ function printQuote() {
       .total{text-align:right;font-size:18px;font-weight:700;margin-top:20px;}
     </style></head><body>
     <h1>PWT International — Quotation</h1>
-    <div class="meta">Client: <strong>${esc(c?.name || '')}</strong> &nbsp;·&nbsp; Date: ${formatDate(new Date().toISOString())}</div>
-    <table><thead><tr><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Total</th></tr></thead>
+    <div class="meta">For: <strong>${esc(quoteForName)}</strong> &nbsp;·&nbsp; Date: ${formatDate(new Date().toISOString())}</div>
+    <table><thead><tr><th>Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Total</th></tr></thead>
     <tbody>${rows}</tbody></table>
     <div class="total">Total: ${fmtMoney(total)} EGP</div>
     </body></html>`;
