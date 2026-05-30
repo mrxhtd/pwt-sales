@@ -1,6 +1,8 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
+import { notifyAdmins } from '../_shared/push.ts';
+import { audit, getClientIp } from '../_shared/audit.ts';
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -23,7 +25,7 @@ Deno.serve(async (req: Request) => {
   const session = await getSession(req);
   if (!session) return json({ error: 'Unauthorized' }, 401, cors);
 
-  const { engineerId, role } = session;
+  const { engineerId, role, fullName } = session;
   const isAdmin = role === 'admin';
 
   try {
@@ -32,82 +34,69 @@ Deno.serve(async (req: Request) => {
     const siteId = body?.siteId;
     if (!siteId) return json({ error: 'Missing siteId' }, 400, cors);
 
-    // Get the site
-    const { data: site, error: sErr } = await supabase
-      .from('sites')
-      .select('*')
-      .eq('id', siteId)
-      .single();
+    // Atomic conversion: insert client + soft-delete site in one transaction.
+    const { data, error } = await supabase.rpc('convert_site_to_client', {
+      p_site_id: siteId,
+      p_acting_engineer_id: engineerId,
+      p_is_admin: isAdmin,
+    });
 
-    if (sErr || !site) return json({ error: 'Site not found' }, 404, cors);
-
-    // Verify ownership
-    if (site.engineer_id !== engineerId && !isAdmin) {
-      return json({ error: 'Not your site' }, 403, cors);
+    if (error) {
+      const msg = String(error.message || '');
+      if (msg.includes('site_not_found')) return json({ error: 'Site not found' }, 404, cors);
+      if (msg.includes('site_deleted')) return json({ error: 'Site no longer exists' }, 404, cors);
+      if (msg.includes('forbidden')) return json({ error: 'Not your site' }, 403, cors);
+      if (msg.includes('not_closed_won')) return json({ error: 'Site must be Closed Won to convert' }, 400, cors);
+      const alreadyMatch = msg.match(/already_converted:([^"\s]+)/);
+      if (alreadyMatch) {
+        return json({ error: 'Already converted', clientId: alreadyMatch[1] }, 400, cors);
+      }
+      console.error('convert RPC error:', error);
+      return json({ error: 'Server error' }, 500, cors);
     }
 
-    // Check status
-    if (site.status !== 'Closed Won') {
-      return json({ error: 'Site must be Closed Won to convert' }, 400, cors);
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) {
+      return json({ error: 'Conversion returned no data' }, 500, cors);
     }
 
-    // Check if already converted
-    const { data: existing } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('converted_from', siteId)
-      .single();
+    const clientId = row.client_id;
 
-    if (existing) {
-      return json({ error: 'Already converted', clientId: existing.id }, 400, cors);
-    }
+    audit({
+      action: 'site_converted',
+      actorId: engineerId,
+      actorName: fullName,
+      actorIp: getClientIp(req),
+      entityType: 'site',
+      entityId: siteId,
+      after: { clientId },
+    });
 
-    // Create client with server-generated ID
-    const clientId = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    const { error: cErr } = await supabase
-      .from('clients')
-      .insert({
-        id: clientId,
-        engineer_id: site.engineer_id,
-        name: site.name || '',
-        contact: site.contact || '',
-        phone: site.phone || '',
-        location: site.location || '',
-        equipment: site.equipment || '',
-        specs: site.specs || '',
-        notes: site.notes || '',
-        converted_from: siteId,
-        converted_at: now,
-        created_at: now,
-        updated_at: now,
-      });
-
-    if (cErr) throw cErr;
-
-    // Remove the lead from sites — it's now a client
-    const { error: dErr } = await supabase.from('sites').delete().eq('id', siteId);
-    if (dErr) {
-      // Client was created but site delete failed — log but don't fail
-      console.error('Warning: site delete failed after conversion:', dErr);
-    }
+    notifyAdmins({
+      title: `Win Closed: ${(row.client_name || 'Client').slice(0, 80)}`,
+      body: `${fullName} converted a lead to client`,
+      tag: `conversion-${clientId}`,
+      url: `/#customer/${clientId}`,
+      excludeEngineerId: engineerId,
+    }).catch(err => console.error('Admin notify failed:', err));
 
     return json({
       ok: true,
       clientId,
       client: {
         id: clientId,
-        name: site.name || '',
-        contact: site.contact || '',
-        phone: site.phone || '',
-        location: site.location || '',
-        equipment: site.equipment || '',
-        specs: site.specs || '',
-        notes: site.notes || '',
+        name: row.client_name || '',
+        contact: row.client_contact || '',
+        phone: row.client_phone || '',
+        location: row.client_location || '',
+        equipment: row.client_equipment || '',
+        specs: row.client_specs || '',
+        notes: row.client_notes || '',
+        engineerId: row.client_engineer_id || '',
+        engineerName: row.client_engineer_name || '',
         convertedFrom: siteId,
-        convertedAt: now,
-        createdAt: now,
+        convertedAt: row.client_converted_at,
+        createdAt: row.client_created_at,
       },
     }, 200, cors);
   } catch (err) {

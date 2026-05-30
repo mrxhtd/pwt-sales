@@ -1,9 +1,6 @@
 const ALLOWED_ORIGINS = [
-  'https://sales-tracker-one-lyart.vercel.app',
   'https://pwt-sales.vercel.app',
-  'https://sales-tracker-*-mxhtdr-9726s-projects.vercel.app', // preview deployments
-  'http://localhost:3000',
-  'http://localhost:5173',
+  'https://sales-tracker-*-mxhtdr-9726s-projects.vercel.app',
 ];
 
 export function getCorsHeaders(req?: Request): Record<string, string> {

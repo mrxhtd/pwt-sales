@@ -2,9 +2,17 @@
   "name": "pwt-sales",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "lint:html": "node -e \"const fs=require('fs');const html=fs.readFileSync('index.html','utf8');if(/on(click|input|change|submit|blur|focus|keyup|keydown)=/i.test(html))throw new Error('Inline event handler in index.html — CSP requires data-* delegation');console.log('html ok')\""
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
   }
 }

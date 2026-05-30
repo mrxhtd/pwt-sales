@@ -56,10 +56,12 @@ Deno.serve(async (req: Request) => {
     const todayStr = now.toISOString().slice(0, 10);
     const tomorrowStr = in12h.toISOString().slice(0, 10);
 
-    // Find leads with due dates in the next 12 hours that haven't been notified
+    // Find leads with due dates in the next 12 hours that haven't been notified.
+    // Skip soft-deleted rows.
     const { data: leads, error: lErr } = await supabase
       .from('sites')
       .select('id, name, due_date, next_action, engineer_id, status')
+      .is('deleted_at', null)
       .gte('due_date', todayStr)
       .lte('due_date', tomorrowStr)
       .not('status', 'eq', 'Closed Won');

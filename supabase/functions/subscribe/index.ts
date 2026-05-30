@@ -30,11 +30,22 @@ Deno.serve(async (req: Request) => {
         return json({ error: 'Invalid subscription' }, 400, cors);
       }
 
-      // Validate endpoint is a valid URL
+      // Validate endpoint is a valid URL from a known push service
+      let endpointUrl: URL;
       try {
-        new URL(subscription.endpoint);
+        endpointUrl = new URL(subscription.endpoint);
       } catch {
         return json({ error: 'Invalid endpoint URL' }, 400, cors);
+      }
+
+      const ALLOWED_PUSH_HOSTS = [
+        'fcm.googleapis.com',
+        'updates.push.services.mozilla.com',
+        'wns.windows.com',
+        'web.push.apple.com',
+      ];
+      if (!ALLOWED_PUSH_HOSTS.some(h => endpointUrl.hostname === h || endpointUrl.hostname.endsWith('.' + h))) {
+        return json({ error: 'Unrecognized push service' }, 400, cors);
       }
 
       // Limit endpoint length

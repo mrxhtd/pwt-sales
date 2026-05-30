@@ -1,4 +1,50 @@
 project_id = "hbiquvmldtoinqtmbvgd"
 
+# NOTE: This file only configures `supabase start` (local Supabase dev stack).
+# Production project settings (REST API, JWT secrets, etc.) are managed in
+# the Supabase dashboard, NOT here. `[api] enabled = false` below disables
+# the *local* REST proxy for `supabase start` only — it does NOT disable
+# anything in production. Production security is enforced by RLS deny-by-default
+# (see migrate.sql) and by Edge Functions using the SERVICE_ROLE key.
+
 [api]
 enabled = false
+
+[functions.auth]
+verify_jwt = false
+
+[functions.sites]
+verify_jwt = false
+
+[functions.clients]
+verify_jwt = false
+
+[functions.products]
+verify_jwt = false
+
+[functions.convert]
+verify_jwt = false
+
+[functions.engineers]
+verify_jwt = false
+
+[functions.extract]
+verify_jwt = false
+
+[functions.subscribe]
+verify_jwt = false
+
+[functions.notify]
+verify_jwt = false
+
+[functions.location]
+verify_jwt = false
+
+[functions.totp]
+verify_jwt = false
+
+[functions.audit]
+verify_jwt = false
+
+[functions.quotes]
+verify_jwt = false

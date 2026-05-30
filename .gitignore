@@ -3,5 +3,14 @@ node_modules
 .DS_Store
 .env
 .env.local
-pwt service/
 .env*.local
+pwt service/
+
+# Test artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# Build / scratch artifacts
+*.bak
+*.tmp
