@@ -8,6 +8,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
   // Set theme before first paint to avoid flash
   (function() {
@@ -949,6 +951,33 @@
 
   .field-full { grid-column: 1 / -1; }
 
+  /* QUOTE MODAL */
+  .quote-body { padding: 18px 24px; max-height: 62vh; overflow-y: auto; }
+  .quote-head-row, .quote-row {
+    display: grid;
+    grid-template-columns: 1fr 64px 96px 90px;
+    gap: 8px;
+    align-items: center;
+  }
+  .quote-head-row {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); padding: 0 0 8px; border-bottom: 1px solid var(--border);
+  }
+  .quote-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .quote-input {
+    width: 100%; padding: 7px 8px; text-align: center;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 13px;
+  }
+  .quote-input:focus { outline: none; border-color: var(--blue); }
+  .quote-row-total { text-align: right; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600; }
+  .quote-grand {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0 2px; font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+  }
+  .quote-grand strong { color: var(--blue); }
+
   .form-field label {
     display: block;
     font-size: 11px;
@@ -1558,6 +1587,7 @@
   <button class="tab active" data-tab="leads" onclick="switchTab('leads')">Leads</button>
   <button class="tab" data-tab="clients" onclick="switchTab('clients')">Clients</button>
   <button class="tab admin-only" data-tab="engineers" onclick="switchTab('engineers')" style="display:none">Team</button>
+  <button class="tab admin-only" data-tab="location" onclick="switchTab('location')" style="display:none">Location</button>
 </div>
 
 <!-- MAIN -->
@@ -1654,6 +1684,12 @@
       <tbody id="engineerTableBody"></tbody>
     </table>
   </div>
+</section>
+
+<!-- LOCATION SECTION (admin only) -->
+<section id="locationSection" style="display:none" class="admin-only">
+  <div id="locationMap" style="width:100%;height:calc(100vh - 200px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);"></div>
+  <div id="locationList" style="margin-top:12px;"></div>
 </section>
 
 <!-- CLIENT DETAIL PAGE -->
@@ -1906,6 +1942,45 @@
   </div>
 </div>
 
+<!-- GENERATE QUOTE MODAL -->
+<div class="modal-backdrop" id="quoteModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">Generate Quote</div>
+      <button class="modal-close" onclick="closeModal('quoteModal')">✕</button>
+    </div>
+    <div class="quote-body">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Client</div>
+        <div id="quoteClientName" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;"></div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Date</div>
+        <div id="quoteDate" style="font-family:'DM Mono',monospace;font-size:13px;"></div>
+      </div>
+    </div>
+    <div class="quote-head-row">
+      <div>Product</div>
+      <div style="text-align:center;">Qty</div>
+      <div style="text-align:center;">Unit Price</div>
+      <div style="text-align:right;">Total</div>
+    </div>
+    <div id="quoteItemsBody"></div>
+    <div class="quote-grand">
+      <span>Total</span>
+      <span><strong id="quoteTotal">0.00</strong> EGP</span>
+    </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('quoteModal')">Cancel</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="copyQuote()">Copy</button>
+      <button class="btn btn-primary" onclick="printQuote()">Print / PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD ENGINEER MODAL (admin only) -->
 <div class="modal-backdrop" id="engineerModal">
   <div class="modal" style="max-width:460px">
@@ -2036,7 +2111,19 @@ async function unsubscribeFromPush() {
   }
 }
 
+function isIOSSafari() {
+  return /iP(hone|ad|od)/.test(navigator.userAgent) && !navigator.standalone;
+}
+
 function toggleNotifications() {
+  if (isIOSSafari()) {
+    showToast('To get notifications on iPhone: tap the Share button ↑ then "Add to Home Screen", then open the app and tap Notify again.', 'error', 6000);
+    return;
+  }
+  if (!('PushManager' in window)) {
+    showToast('Push notifications are not supported on this browser.', 'error');
+    return;
+  }
   if (localStorage.getItem('pwt_push_enabled') === '1') {
     unsubscribeFromPush();
   } else {
@@ -2065,6 +2152,160 @@ function updateNotifButton() {
 // Register SW on page load
 initServiceWorker();
 
+// ─── GEOLOCATION TRACKING ──────────────────────────────
+let _locationInterval = null;
+
+function startLocationTracking() {
+  if (!('geolocation' in navigator)) return;
+  // Send location immediately, then every 10 minutes
+  sendLocation();
+  if (_locationInterval) clearInterval(_locationInterval);
+  _locationInterval = setInterval(sendLocation, 10 * 60 * 1000);
+}
+
+function sendLocation() {
+  if (!getAuthToken()) { console.warn('[loc] no auth token'); return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      console.log('[loc] got position:', pos.coords.latitude.toFixed(4), pos.coords.longitude.toFixed(4));
+      fetch(FUNCTIONS_BASE + '/location', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      }).then(r => {
+        if (!r.ok) r.text().then(t => console.error('[loc] server error', r.status, t));
+        else console.log('[loc] sent ok');
+      }).catch(err => console.error('[loc] network error', err));
+    },
+    (err) => console.warn('[loc] geolocation error', err.code, err.message),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
+  );
+}
+
+function stopLocationTracking() {
+  if (_locationInterval) { clearInterval(_locationInterval); _locationInterval = null; }
+}
+
+// ─── LOCATION MAP (admin) ──────────────────────────────
+let _locationMap = null;
+let _locationMarkers = [];
+
+async function loadLocationMap() {
+  if (currentEngineer?.role !== 'admin') return;
+
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/location', { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to load locations');
+    const data = await res.json();
+    const locations = data.locations || [];
+
+    renderLocationMap(locations);
+  } catch (err) {
+    console.error('Location load error:', err);
+    document.getElementById('locationList').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--text-muted);">Could not load engineer locations</div>';
+  }
+}
+
+function renderLocationMap(locations) {
+  const container = document.getElementById('locationMap');
+
+  // Initialize map if needed
+  if (!_locationMap) {
+    _locationMap = L.map(container).setView([30.05, 31.25], 6); // Default: Egypt
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 18,
+    }).addTo(_locationMap);
+  }
+
+  // Clear existing markers
+  _locationMarkers.forEach(m => _locationMap.removeLayer(m));
+  _locationMarkers = [];
+
+  if (locations.length === 0) {
+    document.getElementById('locationList').innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--text-muted);">No engineer locations available yet. Engineers need to allow location access.</div>';
+    return;
+  }
+
+  // Unique color palette for engineers
+  const ENG_COLORS = [
+    { fill: '#3b82f6', stroke: '#2563eb' },  // blue
+    { fill: '#f97316', stroke: '#ea580c' },  // orange
+    { fill: '#10b981', stroke: '#059669' },  // emerald
+    { fill: '#a855f7', stroke: '#9333ea' },  // purple
+    { fill: '#f43f5e', stroke: '#e11d48' },  // rose
+    { fill: '#eab308', stroke: '#ca8a04' },  // yellow
+    { fill: '#06b6d4', stroke: '#0891b2' },  // cyan
+    { fill: '#ec4899', stroke: '#db2777' },  // pink
+    { fill: '#14b8a6', stroke: '#0d9488' },  // teal
+    { fill: '#f59e0b', stroke: '#d97706' },  // amber
+  ];
+  const STALE_COLOR = { fill: '#6b7280', stroke: '#4b5563' };
+
+  // Assign a stable color per engineer ID
+  const idToColor = {};
+  locations.forEach((loc, i) => { idToColor[loc.id] = ENG_COLORS[i % ENG_COLORS.length]; });
+
+  // Add markers
+  const bounds = [];
+  locations.forEach(loc => {
+    const timeDiff = Date.now() - new Date(loc.updatedAt).getTime();
+    const minsAgo = Math.round(timeDiff / 60000);
+    const timeLabel = minsAgo < 1 ? 'just now' : minsAgo < 60 ? minsAgo + 'm ago' : Math.round(minsAgo / 60) + 'h ago';
+    const isStale = timeDiff > 60 * 60 * 1000; // >1 hour
+    const col = isStale ? STALE_COLOR : idToColor[loc.id];
+
+    const marker = L.circleMarker([loc.lat, loc.lng], {
+      radius: 10,
+      fillColor: col.fill,
+      color: col.stroke,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.8,
+    }).addTo(_locationMap);
+
+    marker.bindPopup(
+      '<div style="font-family:DM Sans,sans-serif;min-width:120px;">' +
+        '<strong>' + esc(loc.fullName) + '</strong><br>' +
+        '<span style="font-size:12px;color:#888;">' + esc(loc.role) + '</span><br>' +
+        '<span style="font-size:11px;color:' + (isStale ? '#ef4444' : '#22c55e') + ';">' + timeLabel + '</span>' +
+      '</div>'
+    );
+
+    _locationMarkers.push(marker);
+    bounds.push([loc.lat, loc.lng]);
+  });
+
+  if (bounds.length > 0) {
+    _locationMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+  }
+
+  // Render list below map
+  document.getElementById('locationList').innerHTML = locations.map(loc => {
+    const timeDiff = Date.now() - new Date(loc.updatedAt).getTime();
+    const minsAgo = Math.round(timeDiff / 60000);
+    const timeLabel = minsAgo < 1 ? 'just now' : minsAgo < 60 ? minsAgo + 'm ago' : Math.round(minsAgo / 60) + 'h ago';
+    const isStale = timeDiff > 60 * 60 * 1000;
+    const dotColor = isStale ? STALE_COLOR.fill : idToColor[loc.id].fill;
+    return '<div class="detail-card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="panToEngineer(' + loc.lat + ',' + loc.lng + ')">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + dotColor + ';flex-shrink:0;"></span>' +
+        '<span><strong>' + esc(loc.fullName) + '</strong> <span style="color:var(--text-muted);font-size:12px;">(' + esc(loc.role) + ')</span></span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:' + (isStale ? 'var(--red)' : 'var(--green)') + ';">' + timeLabel + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Fix map rendering (Leaflet needs invalidateSize after container is shown)
+  setTimeout(() => _locationMap.invalidateSize(), 100);
+}
+
+function panToEngineer(lat, lng) {
+  if (_locationMap) _locationMap.setView([lat, lng], 15);
+}
+
 // ─── DATA ───────────────────────────────────────────────
 let sites = [];
 let clients = [];
@@ -2075,6 +2316,7 @@ let sortCol = 'name';
 let sortAsc = true;
 let currentEngineer = null; // { id, fullName, role }
 let activeTab = 'leads';
+let _suppressRoute = false;
 
 function setCurrentEngineer(eng) {
   currentEngineer = eng;
@@ -2197,7 +2439,7 @@ async function doLogin() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      errEl.textContent = data.error || 'Invalid credentials';
+      errEl.textContent = data.error || data.message || 'Login failed — please try again';
       btn.disabled = false;
       btn.textContent = 'Sign In';
       return;
@@ -2223,6 +2465,9 @@ async function doLogin() {
 
 async function loadDataAfterLogin() {
   try {
+    // Start location tracking for all engineers
+    startLocationTracking();
+
     const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
@@ -2258,6 +2503,7 @@ async function loadData() {
     // Auth valid — immediately show app with skeletons (hide splash + login)
     hideLogin();
     showLeadSkeletons();
+    startLocationTracking();
 
     // Fetch sites
     const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
@@ -2774,7 +3020,7 @@ async function saveEdit() {
     renderTable();
     closeModal('editModal');
     // Refresh detail view if open
-    if (location.hash.startsWith('#client/')) showDetailView(editingId);
+    if (location.hash.startsWith('#lead/')) showDetailView(editingId);
     showToast('Changes saved ✓', 'success');
   } catch (err) {
     if (err.message !== 'unauthorized') showToast('Could not save', 'error');
@@ -2799,7 +3045,7 @@ async function confirmDelete(id, btn) {
     renderStats();
     renderTable();
     closeModal('editModal');
-    if (location.hash.startsWith('#client/')) backToList();
+    if (location.hash.startsWith('#lead/')) backToList();
     showToast(`${s.name} deleted`, 'error');
   } catch (err) {
     if (err.message !== 'unauthorized') showToast('Could not delete', 'error');
@@ -2870,13 +3116,13 @@ function exportExcel() {
 
 // ─── TOAST ───────────────────────────────────────────────
 let toastTimer;
-function showToast(msg, type='success') {
+function showToast(msg, type='success', duration=2800) {
   const t = document.getElementById('toast');
   t.className = `toast ${type}`;
   document.getElementById('toastMsg').textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
 // ─── SKELETON LOADING ───────────────────────────────────
@@ -2924,6 +3170,7 @@ function toggleTheme() {
 applyTheme(localStorage.getItem('pwt_theme') || 'dark');
 
 async function logout() {
+  stopLocationTracking();
   await fetch(FUNCTIONS_BASE + '/auth', { method: 'DELETE', headers: authHeaders() }).catch(() => {});
   clearAuthToken();
   sites = [];
@@ -2951,17 +3198,24 @@ function switchTab(tab) {
   document.querySelector('main').style.display = tab === 'leads' ? '' : 'none';
   document.getElementById('clientsSection').style.display = tab === 'clients' ? '' : 'none';
   document.getElementById('engineersSection').style.display = tab === 'engineers' ? '' : 'none';
+  document.getElementById('locationSection').style.display = tab === 'location' ? '' : 'none';
   document.getElementById('detailPage').classList.remove('active');
   document.querySelector('.name-banner').style.display = '';
   document.querySelector('.tab-bar').style.display = '';
 
   updateHeaderButtons(tab);
 
+  // Set hash first (suppressed via flag to avoid double-load from handleRoute)
+  _suppressRoute = true;
+  if (tab === 'leads') location.hash = '';
+  else if (tab === 'clients') location.hash = 'clients';
+  else if (tab === 'engineers') location.hash = 'engineers';
+  else if (tab === 'location') location.hash = 'location';
+  _suppressRoute = false;
+
   if (tab === 'clients') { showClientSkeletons(); loadClients(); }
   if (tab === 'engineers') { showEngineerSkeletons(); loadEngineers(); }
-  if (tab === 'leads') { location.hash = ''; }
-  else if (tab === 'clients') { location.hash = 'clients'; }
-  else if (tab === 'engineers') { location.hash = 'engineers'; }
+  if (tab === 'location') { loadLocationMap(); }
 }
 
 // ─── LEAD DETAIL PAGE ───────────────────────────────────
@@ -3001,6 +3255,7 @@ function showListView() {
   document.querySelector('main').style.display = activeTab === 'leads' ? '' : 'none';
   document.getElementById('clientsSection').style.display = activeTab === 'clients' ? '' : 'none';
   document.getElementById('engineersSection').style.display = activeTab === 'engineers' ? '' : 'none';
+  document.getElementById('locationSection').style.display = activeTab === 'location' ? '' : 'none';
   document.querySelector('.name-banner').style.display = '';
   document.querySelector('.tab-bar').style.display = '';
   document.getElementById('detailPage').classList.remove('active');
@@ -3013,6 +3268,7 @@ function showDetailView(id) {
   document.querySelector('main').style.display = 'none';
   document.getElementById('clientsSection').style.display = 'none';
   document.getElementById('engineersSection').style.display = 'none';
+  document.getElementById('locationSection').style.display = 'none';
   document.querySelector('.name-banner').style.display = 'none';
   document.querySelector('.tab-bar').style.display = 'none';
   document.getElementById('backLabel').textContent = 'Back to leads';
@@ -3319,6 +3575,10 @@ async function saveClient() {
     closeModal('clientModal');
     showToast(editingClientId ? 'Client updated' : 'Client added', 'success');
     await loadClients();
+    if (location.hash.startsWith('#customer/')) {
+      const cId = location.hash.split('/')[1];
+      if (cId) showCustomerDetailView(cId);
+    }
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -3364,6 +3624,7 @@ async function showCustomerDetailView(id) {
   document.querySelector('main').style.display = 'none';
   document.getElementById('clientsSection').style.display = 'none';
   document.getElementById('engineersSection').style.display = 'none';
+  document.getElementById('locationSection').style.display = 'none';
   document.querySelector('.name-banner').style.display = 'none';
   document.querySelector('.tab-bar').style.display = 'none';
 
@@ -3387,6 +3648,10 @@ function buildCustomerDetailHTML(c) {
         </div>
       </div>
       <div class="detail-actions">
+        <button class="btn btn-primary" onclick="openQuoteModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
+          Generate Quote
+        </button>
         <button class="btn btn-ghost" onclick="openEditClient('${c.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           Edit
@@ -3437,6 +3702,121 @@ function buildCustomerDetailHTML(c) {
       <div id="productsContainer">${productsHTML}</div>
     </div>
   `;
+}
+
+/* ---------- GENERATE QUOTE ---------- */
+let quoteItems = [];
+
+function fmtMoney(n) {
+  return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function openQuoteModal() {
+  const c = clients.find(x => x.id === viewingClientId);
+  if (!c) return;
+  quoteItems = currentClientProducts.map(p => ({
+    name: p.productName || 'Unnamed product',
+    category: CATEGORY_LABELS[p.category] || p.category || '',
+    qty: Number(p.quantity) || 1,
+    price: 0,
+  }));
+  document.getElementById('quoteClientName').textContent = c.name || 'Client';
+  document.getElementById('quoteDate').textContent = formatDate(new Date().toISOString());
+  renderQuoteItems();
+  document.getElementById('quoteModal').classList.add('open');
+}
+
+function renderQuoteItems() {
+  const body = document.getElementById('quoteItemsBody');
+  if (quoteItems.length === 0) {
+    body.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:13px;">This client has no products yet. Add products first to quote them.</div>';
+    document.getElementById('quoteTotal').textContent = '0.00';
+    return;
+  }
+  body.innerHTML = quoteItems.map((it, i) => `
+    <div class="quote-row">
+      <div>
+        <div style="font-weight:600;font-size:13px;">${esc(it.name)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${esc(it.category)}</div>
+      </div>
+      <input type="number" min="0" value="${it.qty}" class="quote-input" oninput="updateQuoteItem(${i},'qty',this.value)" aria-label="Quantity">
+      <input type="number" min="0" step="0.01" value="${it.price || ''}" placeholder="0.00" class="quote-input" oninput="updateQuoteItem(${i},'price',this.value)" aria-label="Unit price">
+      <div class="quote-row-total" id="quoteLine${i}">${fmtMoney(it.qty * it.price)}</div>
+    </div>
+  `).join('');
+  recalcQuoteTotal();
+}
+
+function updateQuoteItem(i, field, val) {
+  quoteItems[i][field] = Number(val) || 0;
+  document.getElementById('quoteLine' + i).textContent = fmtMoney(quoteItems[i].qty * quoteItems[i].price);
+  recalcQuoteTotal();
+}
+
+function recalcQuoteTotal() {
+  const total = quoteItems.reduce((s, it) => s + it.qty * it.price, 0);
+  document.getElementById('quoteTotal').textContent = fmtMoney(total);
+}
+
+function buildQuoteText() {
+  const c = clients.find(x => x.id === viewingClientId);
+  const lines = [];
+  lines.push('PWT International — Quotation');
+  lines.push('Client: ' + (c?.name || ''));
+  lines.push('Date: ' + formatDate(new Date().toISOString()));
+  lines.push('');
+  let total = 0;
+  for (const it of quoteItems) {
+    const lt = it.qty * it.price;
+    total += lt;
+    lines.push(`${it.name}  —  ${it.qty} × ${fmtMoney(it.price)} = ${fmtMoney(lt)} EGP`);
+  }
+  lines.push('');
+  lines.push('Total: ' + fmtMoney(total) + ' EGP');
+  return lines.join('\n');
+}
+
+function copyQuote() {
+  if (quoteItems.length === 0) { showToast('No products to quote', 'error'); return; }
+  const text = buildQuoteText();
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('Quote copied to clipboard'))
+    .catch(() => showToast('Could not copy', 'error'));
+}
+
+function printQuote() {
+  if (quoteItems.length === 0) { showToast('No products to quote', 'error'); return; }
+  const c = clients.find(x => x.id === viewingClientId);
+  let total = 0;
+  const rows = quoteItems.map(it => {
+    const lt = it.qty * it.price; total += lt;
+    return `<tr><td>${esc(it.name)}<br><span style="color:#888;font-size:11px;">${esc(it.category)}</span></td>
+      <td style="text-align:center;">${it.qty}</td>
+      <td style="text-align:right;">${fmtMoney(it.price)}</td>
+      <td style="text-align:right;">${fmtMoney(lt)}</td></tr>`;
+  }).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotation — ${esc(c?.name || '')}</title>
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:40px;}
+      h1{font-size:22px;margin:0 0 4px;}
+      .meta{color:#666;font-size:13px;margin-bottom:24px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      th{text-align:left;border-bottom:2px solid #333;padding:8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
+      td{border-bottom:1px solid #ddd;padding:10px 6px;}
+      .total{text-align:right;font-size:18px;font-weight:700;margin-top:20px;}
+    </style></head><body>
+    <h1>PWT International — Quotation</h1>
+    <div class="meta">Client: <strong>${esc(c?.name || '')}</strong> &nbsp;·&nbsp; Date: ${formatDate(new Date().toISOString())}</div>
+    <table><thead><tr><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Total</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="total">Total: ${fmtMoney(total)} EGP</div>
+    </body></html>`;
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Allow pop-ups to print the quote', 'error'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 350);
 }
 
 function buildProductFilterPillsHTML() {
@@ -3767,6 +4147,7 @@ async function showEngineerDetailView(id) {
   document.querySelector('main').style.display = 'none';
   document.getElementById('clientsSection').style.display = 'none';
   document.getElementById('engineersSection').style.display = 'none';
+  document.getElementById('locationSection').style.display = 'none';
   document.querySelector('.name-banner').style.display = 'none';
   document.querySelector('.tab-bar').style.display = 'none';
 
@@ -3876,6 +4257,7 @@ function buildEngineerDetailHTML(e, leads, clients, totalLowStock) {
 }
 
 function handleRoute() {
+  if (_suppressRoute) return;
   if (!isAuthenticated) return;
   const hash = location.hash.replace('#', '');
 
@@ -3935,6 +4317,16 @@ function handleRoute() {
     showListView();
     showEngineerSkeletons();
     loadEngineers();
+    return;
+  }
+
+  if (hash === 'location') {
+    if (currentEngineer?.role !== 'admin') { location.hash = ''; return; }
+    activeTab = 'location';
+    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'location'));
+    updateHeaderButtons('location');
+    showListView();
+    loadLocationMap();
     return;
   }
 
