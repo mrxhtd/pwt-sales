@@ -995,6 +995,41 @@
     font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
   }
   .quote-grand strong { color: var(--blue); }
+  .quote-words { font-size: 12px; color: var(--text-muted); font-style: italic; margin: 2px 0 8px; }
+  .quote-section-title {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
+    margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .quote-section-title:first-child { margin-top: 0; }
+  .quote-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .qf { display: flex; flex-direction: column; gap: 4px; }
+  .qf.field-full { grid-column: 1 / -1; }
+  .qf label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .qf input, .qf select {
+    padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card, var(--bg)); color: var(--text); font-size: 13px; width: 100%;
+  }
+  .qf input:focus, .qf select:focus { outline: none; border-color: var(--blue); }
+  .quote-head-row6 {
+    display: grid; grid-template-columns: 1.4fr 1.2fr 0.9fr 0.9fr 1fr 30px; gap: 6px;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted);
+    padding: 0 2px 6px; border-bottom: 1px solid var(--border); margin-bottom: 8px;
+  }
+  .quote-irow {
+    display: grid; grid-template-columns: 1.4fr 1.2fr 0.9fr 0.9fr 1fr 30px; gap: 6px;
+    align-items: center; margin-bottom: 8px;
+  }
+  .quote-irow input { padding: 7px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--card, var(--bg)); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; width: 100%; }
+  .quote-irow input:focus { outline: none; border-color: var(--blue); }
+  .quote-irow .qcost { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 600; text-align: right; padding-right: 4px; }
+  @media (max-width: 640px) {
+    .quote-form-grid { grid-template-columns: 1fr; }
+    .quote-head-row6 { display: none; }
+    .quote-irow { grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    .quote-irow .qprod { grid-column: 1 / -1; }
+    .quote-irow .qcost { text-align: left; }
+  }
 
   .form-field label {
     display: block;
@@ -1968,25 +2003,78 @@
       <button class="modal-close" onclick="closeModal('quoteModal')">✕</button>
     </div>
     <div class="quote-body">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div id="quoteForLabel" style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Quote for</div>
-        <div id="quoteClientName" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;"></div>
+      <div class="quote-section-title">Proposal details</div>
+      <div class="quote-form-grid">
+        <div class="qf field-full">
+          <label>Company name</label>
+          <input type="text" id="q_company" placeholder="e.g. Bayer Food">
+        </div>
+        <div class="qf field-full">
+          <label>Business line (under company name)</label>
+          <input type="text" id="q_businessLine" placeholder="e.g. FOODS COMPANY">
+        </div>
+        <div class="qf">
+          <label>System type</label>
+          <select id="q_system" onchange="onQuoteSystemChange()">
+            <option value="boiler">Boiler</option>
+            <option value="cooling_tower">Cooling Tower</option>
+            <option value="chiller">Chiller</option>
+            <option value="swimming_pool">Swimming Pool</option>
+          </select>
+        </div>
+        <div class="qf">
+          <label>Date</label>
+          <input type="date" id="q_date">
+        </div>
+        <div class="qf">
+          <label>Offer No.</label>
+          <input type="text" id="q_offerNo" placeholder="16631 05 26">
+        </div>
+        <div class="qf">
+          <label>Work sheet no.</label>
+          <input type="text" id="q_worksheetNo" placeholder="88 -05-2026 International">
+        </div>
+        <div class="qf">
+          <label>Kind att. — name</label>
+          <input type="text" id="q_attName" placeholder="Eng. / Abd-Elaaty">
+        </div>
+        <div class="qf">
+          <label>Kind att. — title</label>
+          <input type="text" id="q_attTitle" placeholder="QC Manager">
+        </div>
+        <div class="qf">
+          <label>Prepared by — name</label>
+          <input type="text" id="q_prepName" value="Chemist/ Mohamed Hassan">
+        </div>
+        <div class="qf">
+          <label>Prepared by — title</label>
+          <input type="text" id="q_prepTitle" value="Water Treatment Engineer - Water Technology">
+        </div>
+        <div class="qf">
+          <label>Offer valid till</label>
+          <input type="date" id="q_validTill">
+        </div>
+        <div class="qf">
+          <label>Delivery (days from P.O.)</label>
+          <input type="number" id="q_deliveryDays" value="10" min="0">
+        </div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Date</div>
-        <div id="quoteDate" style="font-family:'DM Mono',monospace;font-size:13px;"></div>
+
+      <div class="quote-section-title">Economical offer — products</div>
+      <div class="quote-head-row6">
+        <div>Product</div><div>Usage</div><div>Price EGP/Kg</div><div>Kg / year</div><div>Cost EGP</div><div></div>
       </div>
-    </div>
-    <div id="quoteItemsBody"></div>
-    <button type="button" class="quote-add-btn" onclick="addQuoteRow()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-      Add item
-    </button>
-    <div class="quote-grand">
-      <span>Total</span>
-      <span><strong id="quoteTotal">0.00</strong> EGP</span>
-    </div>
+      <datalist id="quoteProductList"></datalist>
+      <div id="quoteItemsBody"></div>
+      <button type="button" class="quote-add-btn" onclick="addQuoteRow()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Add product
+      </button>
+      <div class="quote-grand">
+        <span>Total</span>
+        <span><strong id="quoteTotal">0.00</strong> EGP</span>
+      </div>
+      <div id="quoteTotalWords" class="quote-words"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('quoteModal')">Cancel</button>
