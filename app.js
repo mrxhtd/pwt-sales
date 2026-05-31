@@ -271,7 +271,7 @@ async function maybePromptLocationConsent() {
   if (currentEngineer?.role === 'admin') return;
   const consent = await fetchLocationConsent();
   if (consent) {
-    maybePromptLocationConsent();
+    startLocationTracking();
     return;
   }
   showLocationConsentBanner();
