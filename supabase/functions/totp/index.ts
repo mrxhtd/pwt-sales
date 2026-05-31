@@ -132,10 +132,12 @@ Deno.serve(async (req: Request) => {
       const issuer = encodeURIComponent('PWT Sales');
       const otpauth = `otpauth://totp/${label}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
 
-      // Stash secret on the row but leave enabled = FALSE until verification.
+      // Stage the new secret separately. If the user is already enrolled, their
+      // existing totp_secret + totp_enabled stay intact until the new code is
+      // verified — otherwise calling /totp start would silently disable 2FA.
       const { error } = await supabase
         .from('engineers')
-        .update({ totp_secret: secret, totp_enabled: false, updated_at: new Date().toISOString() })
+        .update({ totp_secret_pending: secret, updated_at: new Date().toISOString() })
         .eq('id', session.engineerId);
       if (error) throw error;
 
@@ -146,16 +148,19 @@ Deno.serve(async (req: Request) => {
       const code = String(body?.code || '').replace(/\s+/g, '');
       const { data: eng } = await supabase
         .from('engineers')
-        .select('totp_secret')
+        .select('totp_secret_pending')
         .eq('id', session.engineerId)
         .single();
-      if (!eng?.totp_secret) return json({ error: 'No TOTP secret staged; call start first' }, 400, cors);
-      const ok = await verifyTotp(eng.totp_secret, code);
+      if (!eng?.totp_secret_pending) return json({ error: 'No TOTP secret staged; call start first' }, 400, cors);
+      const ok = await verifyTotp(eng.totp_secret_pending, code);
       if (!ok) return json({ error: 'Invalid code' }, 400, cors);
 
+      // Promote the verified pending secret to the live secret in a single update.
       const { error } = await supabase
         .from('engineers')
         .update({
+          totp_secret: eng.totp_secret_pending,
+          totp_secret_pending: null,
           totp_enabled: true,
           totp_enrolled_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -204,6 +209,7 @@ Deno.serve(async (req: Request) => {
         .from('engineers')
         .update({
           totp_secret: null,
+          totp_secret_pending: null,
           totp_enabled: false,
           totp_enrolled_at: null,
           updated_at: new Date().toISOString(),

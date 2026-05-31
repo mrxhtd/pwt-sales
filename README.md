@@ -28,6 +28,7 @@ Single-tenant sales CRM built for **PWT International** (water-treatment chemica
 │   ├── login_attempts.sql      # Persistent rate limit + register_login_attempt() RPC (HIGH-5).
 │   ├── soft_delete.sql         # deleted_at columns + auto-purge cron (HIGH-7).
 │   ├── totp.sql                # TOTP secret + recovery codes (HIGH-8).
+│   ├── totp_pending.sql        # Staging column so /totp start can't disable enabled 2FA.
 │   ├── quotes.sql              # Server-side offer numbering sequence (MED-15).
 │   ├── geolocation_consent.sql # Per-engineer location opt-in (HIGH-10).
 │   └── convert_rpc.sql         # Atomic convert_site_to_client() RPC (HIGH-12).
@@ -91,6 +92,7 @@ The VAPID public key is **also** hardcoded in `app.js` (`VAPID_PUBLIC_KEY` const
    migrations/login_attempts.sql
    migrations/soft_delete.sql
    migrations/totp.sql
+   migrations/totp_pending.sql
    migrations/quotes.sql
    migrations/geolocation_consent.sql
    migrations/convert_rpc.sql
