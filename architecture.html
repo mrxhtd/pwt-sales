@@ -523,16 +523,16 @@
 <!-- ═══════════════════════ NAV ═══════════════════════ -->
 <div class="nav">
   <div class="nav-inner">
-    <button class="nav-btn active" onclick="showSection('overview')">Overview</button>
-    <button class="nav-btn" onclick="showSection('stack')">Tech Stack</button>
-    <button class="nav-btn" onclick="showSection('auth')">Auth Flow</button>
-    <button class="nav-btn" onclick="showSection('data')">Data Model</button>
-    <button class="nav-btn" onclick="showSection('api')">API Layer</button>
-    <button class="nav-btn" onclick="showSection('frontend')">Frontend</button>
-    <button class="nav-btn" onclick="showSection('routing')">Routing</button>
-    <button class="nav-btn" onclick="showSection('roles')">Roles & Access</button>
-    <button class="nav-btn" onclick="showSection('security')">Security</button>
-    <button class="nav-btn" onclick="showSection('files')">File Map</button>
+    <button class="nav-btn active" data-click="showSection" data-click-args="[&quot;overview&quot;]">Overview</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;stack&quot;]">Tech Stack</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;auth&quot;]">Auth Flow</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;data&quot;]">Data Model</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;api&quot;]">API Layer</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;frontend&quot;]">Frontend</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;routing&quot;]">Routing</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;roles&quot;]">Roles & Access</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;security&quot;]">Security</button>
+    <button class="nav-btn" data-click="showSection" data-click-args="[&quot;files&quot;]">File Map</button>
   </div>
 </div>
 
@@ -1257,14 +1257,6 @@
   PWT International — Sales Tracker Architecture Reference
 </div>
 
-<script>
-function showSection(id) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  window.scrollTo({ top: document.querySelector('.nav').offsetTop, behavior: 'smooth' });
-}
-</script>
+<script src="/architecture.js" defer></script>
 </body>
 </html>
