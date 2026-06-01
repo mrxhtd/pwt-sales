@@ -2491,12 +2491,40 @@ async function deleteSite(id) {
   if (!res.ok) throw new Error('delete failed');
 }
 
+// ─── PAGINATION ────────────────────────────────────────
+// Server endpoints are paginated (limit/offset). These helpers page through
+// all results so the existing client-side search/sort/stats keep working,
+// while each request stays bounded (no silent truncation at large row counts).
+const PAGE_SIZE = 500;
+
+async function fetchAllPages(path, key) {
+  let offset = 0;
+  let rows = [];
+  let lastData = {};
+  // Hard cap to avoid an unbounded loop if the server misbehaves.
+  for (let i = 0; i < 1000; i++) {
+    const sep = path.includes('?') ? '&' : '?';
+    const url = FUNCTIONS_BASE + path + sep + 'limit=' + PAGE_SIZE + '&offset=' + offset;
+    const res = await fetch(url, { headers: authHeaders() });
+    if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    lastData = data;
+    const page = data[key] || [];
+    rows = rows.concat(page);
+    const p = data.pagination;
+    // Stop when the server says there's no more, or (back-compat) when a
+    // non-paginated response returns fewer than a full page.
+    if (!p) break;
+    if (!p.hasMore || page.length === 0) break;
+    offset += PAGE_SIZE;
+  }
+  return { rows, lastData };
+}
+
 async function fetchSites() {
-  const res = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
-  if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
-  if (!res.ok) throw new Error('fetch failed');
-  const data = await res.json();
-  return data.sites || [];
+  const { rows } = await fetchAllPages('/sites', 'sites');
+  return rows;
 }
 
 // ─── AUTH / INIT ───────────────────────────────────────
@@ -2572,10 +2600,7 @@ async function loadDataAfterLogin() {
     // Start location tracking for all engineers
     startLocationTracking();
 
-    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
-    if (sitesRes.status === 401) { showLogin(); return; }
-    const sitesData = await sitesRes.json();
-    sites = sitesData.sites || [];
+    sites = await fetchSites();
     await maybeMigrateLocal();
     renderStats();
     renderPills();
@@ -2609,11 +2634,8 @@ async function loadData() {
     showLeadSkeletons();
     startLocationTracking();
 
-    // Fetch sites
-    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
-    if (sitesRes.status === 401) { showLogin(); return; }
-    const sitesData = await sitesRes.json();
-    sites = sitesData.sites || [];
+    // Fetch sites (all pages)
+    sites = await fetchSites();
 
     await maybeMigrateLocal();
     renderStats();
@@ -3569,13 +3591,12 @@ function onProductNameChange() {
 
 async function loadClients() {
   try {
-    const res = await fetch(FUNCTIONS_BASE + '/clients', { headers: authHeaders() });
-    if (res.status === 401) { showLogin(); return; }
-    const data = await res.json();
-    clients = data.clients || [];
+    const { rows } = await fetchAllPages('/clients', 'clients');
+    clients = rows;
     renderClientStats();
     renderClientTable();
   } catch (err) {
+    if (err.message === 'unauthorized') return;
     console.error(err);
     showToast('Could not load clients', 'error');
   }
@@ -4479,13 +4500,12 @@ let editingEngineerId = null;
 async function loadEngineers() {
   if (currentEngineer?.role !== 'admin') return;
   try {
-    const res = await fetch(FUNCTIONS_BASE + '/engineers', { headers: authHeaders() });
-    if (!res.ok) return;
-    const data = await res.json();
-    engineers = data.engineers || [];
+    const { rows } = await fetchAllPages('/engineers', 'engineers');
+    engineers = rows;
     renderEngineerStats();
     renderEngineerTable();
   } catch (err) {
+    if (err.message === 'unauthorized') return;
     console.error(err);
   }
 }
@@ -4586,24 +4606,20 @@ async function showEngineerDetailView(id) {
   const eng = engineers.find(x => x.id === id);
   if (!eng) { showListView(); return; }
 
-  // Fetch this engineer's leads and clients in parallel
+  // Fetch this engineer's leads and clients in parallel (all pages each)
   let engLeads = [], engClients = [], totalLowStock = 0;
   try {
-    const [leadsRes, clientsRes] = await Promise.all([
-      fetch(FUNCTIONS_BASE + '/sites?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
-      fetch(FUNCTIONS_BASE + '/clients?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
+    const q = '?engineerId=' + encodeURIComponent(id);
+    const [leadsResult, clientsResult] = await Promise.all([
+      fetchAllPages('/sites' + q, 'sites'),
+      fetchAllPages('/clients' + q, 'clients'),
     ]);
-    if (leadsRes.ok) {
-      const ld = await leadsRes.json();
-      engLeads = ld.sites || [];
-    }
-    if (clientsRes.ok) {
-      const cd = await clientsRes.json();
-      engClients = cd.clients || [];
-      totalLowStock = cd.totalLowStock || 0;
-    }
+    engLeads = leadsResult.rows;
+    engClients = clientsResult.rows;
+    // totalLowStock is reported per page — recompute from the full result set.
+    totalLowStock = engClients.reduce((sum, c) => sum + (c.lowStockCount || 0), 0);
   } catch (err) {
-    console.error('Failed to load engineer data:', err);
+    if (err.message !== 'unauthorized') console.error('Failed to load engineer data:', err);
   }
 
   document.querySelector('main').style.display = 'none';
