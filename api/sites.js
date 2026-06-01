@@ -3,6 +3,22 @@ import { getSession } from '../lib/auth.js';
 
 export const config = { maxDuration: 30 };
 
+// ─── PAGINATION ───────────────────────────────────────
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 500;
+function parsePaging(url) {
+  let limit = parseInt(url.searchParams.get('limit'), 10);
+  let offset = parseInt(url.searchParams.get('offset'), 10);
+  if (!Number.isFinite(limit) || limit <= 0) limit = DEFAULT_PAGE_SIZE;
+  if (limit > MAX_PAGE_SIZE) limit = MAX_PAGE_SIZE;
+  if (!Number.isFinite(offset) || offset < 0) offset = 0;
+  return { limit, offset };
+}
+function pageMeta(count, limit, offset, rows) {
+  const total = count ?? 0;
+  return { total, limit, offset, hasMore: offset + (rows?.length || 0) < total };
+}
+
 function rowToSite(r) {
   return {
     id: r.id,
@@ -35,22 +51,28 @@ export default async function handler(req, res) {
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
+      const url = new URL(req.url, 'http://x');
+      const { limit, offset } = parsePaging(url);
+
       let query = supabase
         .from('sites')
-        .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)')
-        .order('updated_at', { ascending: false });
+        .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)', { count: 'exact' })
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
       if (!isAdmin) {
         query = query.eq('engineer_id', engineerId);
       } else {
-        const url = new URL(req.url, 'http://x');
         const filterEngId = url.searchParams.get('engineerId');
         if (filterEngId) query = query.eq('engineer_id', filterEngId);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return res.status(200).json({ sites: (data || []).map(rowToSite) });
+      return res.status(200).json({
+        sites: (data || []).map(rowToSite),
+        pagination: pageMeta(count, limit, offset, data),
+      });
     }
 
     if (req.method === 'POST') {
