@@ -1,0 +1,19 @@
+# Keep server/database artifacts out of the public static deploy.
+# Vercel serves repo-root files statically; anything listed here is never
+# uploaded, so it cannot be fetched over HTTP (e.g. /migrate.sql).
+
+# SQL schema, migrations and seeds
+*.sql
+migrations/
+seed-admin.example.sql
+
+# Supabase project config, Edge Functions and local state (deployed separately)
+supabase/
+
+# Local tooling and docs not needed by the browser app
+scripts/
+SECURITY.md
+
+# Local env / git
+.env*
+.git

@@ -5,3 +5,7 @@ node_modules
 .env.local
 pwt service/
 .env*.local
+
+# Real admin seed — must never be committed (contains a password hash)
+seed-admin.sql
+*.local.sql

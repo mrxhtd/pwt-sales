@@ -81,11 +81,16 @@ CREATE POLICY "allow_all_sessions" ON sessions FOR ALL USING (true) WITH CHECK (
 CREATE POLICY "allow_all_clients" ON clients FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_client_products" ON client_products FOR ALL USING (true) WITH CHECK (true);
 
--- 7. Create initial admin account
--- Password: pwt123 (bcrypt hash below)
-INSERT INTO engineers (id, username, password, full_name, role)
-VALUES ('eng_admin_001', 'nouh', '$2b$10$pRJME2jNCnjHX0QiZq55MODSpxk2Rh.6zqxMGDOBt0Q7I6YfZJg7y', 'Nouh Mosa', 'admin')
-ON CONFLICT (id) DO NOTHING;
+-- 7. Create the initial admin account
+--    Do NOT hardcode credentials in this file — it is committed to git and may be
+--    served statically by the host. Seed the admin separately so the password hash
+--    never lands in version control:
+--      1. node scripts/hash-password.mjs        (generates a bcrypt hash locally)
+--      2. copy seed-admin.example.sql -> seed-admin.sql  (seed-admin.sql is gitignored)
+--      3. paste the generated hash into seed-admin.sql, then run it in the Supabase
+--         SQL editor.
+--    See SECURITY.md for full details and credential-rotation steps.
 
--- 8. Assign all existing sites to admin
-UPDATE sites SET engineer_id = 'eng_admin_001' WHERE engineer_id IS NULL;
+-- 8. Assign all existing sites to the seeded admin
+--    Run this AFTER seeding the admin account (see seed-admin.example.sql).
+-- UPDATE sites SET engineer_id = 'eng_admin_001' WHERE engineer_id IS NULL;
