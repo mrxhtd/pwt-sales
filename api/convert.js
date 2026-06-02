@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
 import { getSupabase } from '../lib/db.js';
 import { getSession } from '../lib/auth.js';
+import { audit } from '../lib/audit.js';
 
+// NOTE: legacy Vercel backend; the live frontend uses the Supabase Edge Functions.
 export const config = { maxDuration: 30 };
 
 export default async function handler(req, res) {
@@ -26,6 +28,7 @@ export default async function handler(req, res) {
       .from('sites')
       .select('*')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single();
 
     if (sErr || !site) return res.status(404).json({ error: 'Site not found' });
@@ -74,9 +77,16 @@ export default async function handler(req, res) {
       });
 
     if (cErr) throw cErr;
+    await audit(supabase, { table: 'clients', rowId: clientId, action: 'insert', session, after: { convertedFrom: siteId, name: site.name } });
 
-    // Remove the lead from sites — it's now a client
-    await supabase.from('sites').delete().eq('id', siteId);
+    // Retire the lead from sites — it's now a client (soft delete, recoverable).
+    const { error: dErr } = await supabase.from('sites')
+      .update({ deleted_at: now, updated_at: now }).eq('id', siteId);
+    if (dErr) {
+      console.error('Warning: site soft-delete failed after conversion:', dErr);
+    } else {
+      await audit(supabase, { table: 'sites', rowId: siteId, action: 'delete', session, before: site });
+    }
 
     return res.status(200).json({
       ok: true,
