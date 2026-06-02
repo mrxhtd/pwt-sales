@@ -1,6 +1,8 @@
 import { getSupabase } from '../lib/db.js';
 import { getSession } from '../lib/auth.js';
+import { audit } from '../lib/audit.js';
 
+// NOTE: legacy Vercel backend; the live frontend uses the Supabase Edge Functions.
 export const config = { maxDuration: 30 };
 
 function rowToProduct(r) {
@@ -26,6 +28,7 @@ async function verifyClientOwnership(supabase, clientId, engineerId, isAdmin) {
     .from('clients')
     .select('engineer_id')
     .eq('id', clientId)
+    .is('deleted_at', null)
     .single();
   return data && data.engineer_id === engineerId;
 }
@@ -53,6 +56,7 @@ export default async function handler(req, res) {
         .from('client_products')
         .select('*')
         .eq('client_id', clientId)
+        .is('deleted_at', null)
         .order('category')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -61,6 +65,19 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+
+      // RESTORE a soft-deleted product (admin only)
+      if (body?.restore) {
+        if (!isAdmin) return res.status(403).json({ error: 'Admin only' });
+        const { data: dead } = await supabase.from('client_products').select('*').eq('id', body.restore).single();
+        if (!dead) return res.status(404).json({ error: 'Product not found' });
+        const { error } = await supabase.from('client_products')
+          .update({ deleted_at: null, updated_at: new Date().toISOString() }).eq('id', body.restore);
+        if (error) throw error;
+        await audit(supabase, { table: 'client_products', rowId: body.restore, action: 'restore', session, before: dead });
+        return res.status(200).json({ ok: true, id: body.restore });
+      }
+
       const p = body?.product;
       if (!p?.id || !p?.clientId) return res.status(400).json({ error: 'Missing product.id or product.clientId' });
 
@@ -78,22 +95,28 @@ export default async function handler(req, res) {
       const owns = await verifyClientOwnership(supabase, p.clientId, engineerId, isAdmin);
       if (!owns) return res.status(403).json({ error: 'Not your client' });
 
-      const { error } = await supabase
-        .from('client_products')
-        .upsert({
-          id: p.id,
-          client_id: p.clientId,
-          category: p.category || 'boilers',
-          product_name: p.productName || '',
-          model: p.model || '',
-          quantity: p.quantity || 1,
-          install_date: p.installDate || null,
-          next_maintenance_date: p.nextMaintenanceDate || null,
-          status: p.status || 'active',
-          notes: p.notes || '',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+      const { data: existing } = await supabase
+        .from('client_products').select('*').eq('id', p.id).is('deleted_at', null).single();
+
+      const record = {
+        id: p.id,
+        client_id: p.clientId,
+        category: p.category || 'boilers',
+        product_name: p.productName || '',
+        model: p.model || '',
+        quantity: p.quantity || 1,
+        install_date: p.installDate || null,
+        next_maintenance_date: p.nextMaintenanceDate || null,
+        status: p.status || 'active',
+        notes: p.notes || '',
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('client_products').upsert(record, { onConflict: 'id' });
       if (error) throw error;
+      await audit(supabase, {
+        table: 'client_products', rowId: p.id, action: existing ? 'update' : 'insert',
+        session, before: existing || null, after: record,
+      });
       return res.status(200).json({ ok: true });
     }
 
@@ -102,21 +125,18 @@ export default async function handler(req, res) {
       const id = url.searchParams.get('id');
       if (!id) return res.status(400).json({ error: 'Missing id' });
 
-      // Verify ownership via join
+      const { data: product } = await supabase
+        .from('client_products').select('*').eq('id', id).is('deleted_at', null).single();
+      if (!product) return res.status(200).json({ ok: true }); // already gone — idempotent
       if (!isAdmin) {
-        const { data: product } = await supabase
-          .from('client_products')
-          .select('client_id')
-          .eq('id', id)
-          .single();
-        if (product) {
-          const owns = await verifyClientOwnership(supabase, product.client_id, engineerId, isAdmin);
-          if (!owns) return res.status(403).json({ error: 'Not your client' });
-        }
+        const owns = await verifyClientOwnership(supabase, product.client_id, engineerId, isAdmin);
+        if (!owns) return res.status(403).json({ error: 'Not your client' });
       }
 
-      const { error } = await supabase.from('client_products').delete().eq('id', id);
+      const { error } = await supabase.from('client_products')
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
       if (error) throw error;
+      await audit(supabase, { table: 'client_products', rowId: id, action: 'delete', session, before: product });
       return res.status(200).json({ ok: true });
     }
 

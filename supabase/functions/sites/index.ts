@@ -1,6 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
+import { audit } from '../_shared/audit.ts';
 
 const MAX_FIELD = 2000; // max chars per text field
 function clamp(s: string, max = MAX_FIELD): string {
@@ -70,6 +71,7 @@ Deno.serve(async (req: Request) => {
       let query = supabase
         .from('sites')
         .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)', { count: 'exact' })
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -90,6 +92,22 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === 'POST') {
       const body = await req.json();
+
+      // RESTORE a soft-deleted site (admin only)
+      if (body?.restore) {
+        if (!isAdmin) return json({ error: 'Admin only' }, 403, cors);
+        const { data: dead } = await supabase
+          .from('sites').select('*').eq('id', body.restore).single();
+        if (!dead) return json({ error: 'Site not found' }, 404, cors);
+        const { error } = await supabase
+          .from('sites')
+          .update({ deleted_at: null, updated_at: new Date().toISOString() })
+          .eq('id', body.restore);
+        if (error) throw error;
+        await audit(supabase, { table: 'sites', rowId: body.restore, action: 'restore', session, before: dead });
+        return json({ ok: true, id: body.restore }, 200, cors);
+      }
+
       const s = body?.site;
       if (!s?.id) return json({ error: 'Missing site.id' }, 400, cors);
 
@@ -97,11 +115,12 @@ Deno.serve(async (req: Request) => {
         return json({ error: 'Invalid status' }, 400, cors);
       }
 
-      // Check if record exists — separate insert vs update
+      // Check if record exists — separate insert vs update (ignore soft-deleted)
       const { data: existing } = await supabase
         .from('sites')
-        .select('engineer_id')
+        .select('*')
         .eq('id', s.id)
+        .is('deleted_at', null)
         .single();
 
       if (existing) {
@@ -109,44 +128,43 @@ Deno.serve(async (req: Request) => {
         if (existing.engineer_id !== engineerId && !isAdmin) {
           return json({ error: 'Not your site' }, 403, cors);
         }
-        const { error } = await supabase
-          .from('sites')
-          .update({
-            name: clamp(s.name),
-            contact: clamp(s.contact),
-            phone: clamp(s.phone, 50),
-            equipment: clamp(s.equipment),
-            specs: clamp(s.specs),
-            location: clamp(s.location),
-            status: s.status || '',
-            next_action: clamp(s.nextAction),
-            due_date: s.dueDate || '',
-            notes: clamp(s.notes, 5000),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', s.id);
+        const patch = {
+          name: clamp(s.name),
+          contact: clamp(s.contact),
+          phone: clamp(s.phone, 50),
+          equipment: clamp(s.equipment),
+          specs: clamp(s.specs),
+          location: clamp(s.location),
+          status: s.status || '',
+          next_action: clamp(s.nextAction),
+          due_date: s.dueDate || '',
+          notes: clamp(s.notes, 5000),
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from('sites').update(patch).eq('id', s.id);
         if (error) throw error;
+        await audit(supabase, { table: 'sites', rowId: s.id, action: 'update', session, before: existing, after: patch });
       } else {
         // INSERT — server generates ID to prevent IDOR
         const newId = crypto.randomUUID();
-        const { error } = await supabase
-          .from('sites')
-          .insert({
-            id: newId,
-            name: clamp(s.name),
-            contact: clamp(s.contact),
-            phone: clamp(s.phone, 50),
-            equipment: clamp(s.equipment),
-            specs: clamp(s.specs),
-            location: clamp(s.location),
-            status: s.status || '',
-            next_action: clamp(s.nextAction),
-            due_date: s.dueDate || '',
-            notes: clamp(s.notes, 5000),
-            engineer_id: engineerId,
-            updated_at: new Date().toISOString(),
-          });
+        const record = {
+          id: newId,
+          name: clamp(s.name),
+          contact: clamp(s.contact),
+          phone: clamp(s.phone, 50),
+          equipment: clamp(s.equipment),
+          specs: clamp(s.specs),
+          location: clamp(s.location),
+          status: s.status || '',
+          next_action: clamp(s.nextAction),
+          due_date: s.dueDate || '',
+          notes: clamp(s.notes, 5000),
+          engineer_id: engineerId,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from('sites').insert(record);
         if (error) throw error;
+        await audit(supabase, { table: 'sites', rowId: newId, action: 'insert', session, after: record });
         return json({ ok: true, id: newId }, 200, cors);
       }
 
@@ -158,19 +176,21 @@ Deno.serve(async (req: Request) => {
       const id = url.searchParams.get('id');
       if (!id) return json({ error: 'Missing id' }, 400, cors);
 
-      if (!isAdmin) {
-        const { data: existing } = await supabase
-          .from('sites')
-          .select('engineer_id')
-          .eq('id', id)
-          .single();
-        if (existing && existing.engineer_id !== engineerId) {
-          return json({ error: 'Not your site' }, 403, cors);
-        }
+      // Fetch the live row for the ownership check + audit snapshot.
+      const { data: existing } = await supabase
+        .from('sites').select('*').eq('id', id).is('deleted_at', null).single();
+      if (!existing) return json({ ok: true }, 200, cors); // already gone — idempotent
+      if (!isAdmin && existing.engineer_id !== engineerId) {
+        return json({ error: 'Not your site' }, 403, cors);
       }
 
-      const { error } = await supabase.from('sites').delete().eq('id', id);
+      // Soft delete — keep the row so it stays recoverable and auditable.
+      const { error } = await supabase
+        .from('sites')
+        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', id);
       if (error) throw error;
+      await audit(supabase, { table: 'sites', rowId: id, action: 'delete', session, before: existing });
       return json({ ok: true }, 200, cors);
     }
 

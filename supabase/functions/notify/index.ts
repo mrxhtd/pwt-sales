@@ -60,6 +60,7 @@ Deno.serve(async (req: Request) => {
     const { data: leads, error: lErr } = await supabase
       .from('sites')
       .select('id, name, due_date, next_action, engineer_id, status')
+      .is('deleted_at', null)
       .gte('due_date', todayStr)
       .lte('due_date', tomorrowStr)
       .not('status', 'eq', 'Closed Won');

@@ -1,6 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
+import { audit } from '../_shared/audit.ts';
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -37,6 +38,7 @@ Deno.serve(async (req: Request) => {
       .from('sites')
       .select('*')
       .eq('id', siteId)
+      .is('deleted_at', null)
       .single();
 
     if (sErr || !site) return json({ error: 'Site not found' }, 404, cors);
@@ -85,12 +87,17 @@ Deno.serve(async (req: Request) => {
       });
 
     if (cErr) throw cErr;
+    await audit(supabase, { table: 'clients', rowId: clientId, action: 'insert', session, after: { convertedFrom: siteId, name: site.name } });
 
-    // Remove the lead from sites — it's now a client
-    const { error: dErr } = await supabase.from('sites').delete().eq('id', siteId);
+    // Retire the lead from sites — it's now a client. Soft delete so it stays
+    // recoverable and the conversion is auditable.
+    const { error: dErr } = await supabase
+      .from('sites').update({ deleted_at: now, updated_at: now }).eq('id', siteId);
     if (dErr) {
-      // Client was created but site delete failed — log but don't fail
-      console.error('Warning: site delete failed after conversion:', dErr);
+      // Client was created but site retire failed — log but don't fail
+      console.error('Warning: site soft-delete failed after conversion:', dErr);
+    } else {
+      await audit(supabase, { table: 'sites', rowId: siteId, action: 'delete', session, before: site });
     }
 
     return json({
