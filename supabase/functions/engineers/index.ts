@@ -5,22 +5,6 @@ import bcrypt from 'npm:bcryptjs@2.4.3';
 
 const MAX_FIELD = 200;
 
-// ─── PAGINATION ───────────────────────────────────────
-const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGE_SIZE = 500;
-function parsePaging(url: URL) {
-  let limit = parseInt(url.searchParams.get('limit') || '', 10);
-  let offset = parseInt(url.searchParams.get('offset') || '', 10);
-  if (!Number.isFinite(limit) || limit <= 0) limit = DEFAULT_PAGE_SIZE;
-  if (limit > MAX_PAGE_SIZE) limit = MAX_PAGE_SIZE;
-  if (!Number.isFinite(offset) || offset < 0) offset = 0;
-  return { limit, offset };
-}
-function pageMeta(count: number | null, limit: number, offset: number, rows: unknown[] | null) {
-  const total = count ?? 0;
-  return { total, limit, offset, hasMore: offset + (rows?.length || 0) < total };
-}
-
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
@@ -46,13 +30,10 @@ Deno.serve(async (req: Request) => {
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
-      const url = new URL(req.url);
-      const { limit, offset } = parsePaging(url);
-      const { data, error, count } = await supabase
+      const { data, error } = await supabase
         .from('engineers')
-        .select('id, username, full_name, role, is_active, created_at', { count: 'exact' })
-        .order('created_at', { ascending: true })
-        .range(offset, offset + limit - 1);
+        .select('id, username, full_name, role, is_active, created_at')
+        .order('created_at', { ascending: true });
       if (error) throw error;
       return json({
         engineers: (data || []).map((e: any) => ({
@@ -63,7 +44,6 @@ Deno.serve(async (req: Request) => {
           isActive: e.is_active,
           createdAt: e.created_at,
         })),
-        pagination: pageMeta(count, limit, offset, data),
       }, 200, cors);
     }
 
