@@ -1640,7 +1640,8 @@
   <button class="tab active" data-tab="leads" onclick="switchTab('leads')">Leads</button>
   <button class="tab" data-tab="clients" onclick="switchTab('clients')">Clients</button>
   <button class="tab admin-only" data-tab="engineers" onclick="switchTab('engineers')" style="display:none">Team</button>
-  <button class="tab admin-only" data-tab="location" onclick="switchTab('location')" style="display:none">Location</button>
+  <!-- Location tab temporarily hidden (WIP). Re-enable by restoring class="tab admin-only". -->
+  <button class="tab" data-tab="location" onclick="switchTab('location')" style="display:none">Location</button>
 </div>
 
 <!-- MAIN -->
@@ -4783,6 +4784,8 @@ function handleRoute() {
   }
 
   if (hash === 'location') {
+    // Location tab temporarily hidden (WIP) — block direct #location deep links.
+    location.hash = ''; return;
     if (currentEngineer?.role !== 'admin') { location.hash = ''; return; }
     activeTab = 'location';
     document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'location'));
