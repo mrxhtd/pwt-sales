@@ -4473,6 +4473,7 @@ function renderEngineerStats() {
 function renderEngineerTable() {
   const q = (document.getElementById('engineerSearchInput')?.value || '').toLowerCase();
   let filtered = engineers.filter(e => {
+    if (!e.isActive) return false;
     if (q && !(e.fullName + e.username + e.role).toLowerCase().includes(q)) return false;
     return true;
   });
