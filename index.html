@@ -1899,6 +1899,41 @@
   </div>
 </div>
 
+<!-- FOLLOW UP MODAL -->
+<div class="modal-backdrop" id="followUpModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">Add Follow Up</div>
+      <button class="modal-close" onclick="closeModal('followUpModal')">✕</button>
+    </div>
+    <div class="form-grid" style="padding:20px 24px;gap:16px">
+      <div class="form-field">
+        <label>Type</label>
+        <select id="fu_type">
+          <option value="call">📞 Call</option>
+          <option value="visit">🏃 Visit</option>
+        </select>
+      </div>
+      <div class="form-field field-full">
+        <label>What happened</label>
+        <textarea id="fu_whatHappened" rows="3" placeholder="Describe what was discussed or done..."></textarea>
+      </div>
+      <div class="form-field field-full">
+        <label>Next Action</label>
+        <input type="text" id="fu_nextAction" placeholder="What needs to happen next?">
+      </div>
+      <div class="form-field">
+        <label>Next Action Date</label>
+        <input type="date" id="fu_nextActionDate">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('followUpModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveFollowUpBtn" onclick="saveFollowUp()">Save Follow Up</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD/EDIT CLIENT MODAL -->
 <div class="modal-backdrop" id="clientModal">
   <div class="modal" style="max-width:620px">
@@ -3442,10 +3477,99 @@ function showDetailView(id) {
         </div>
       </div>
     </div>
+
+    <div class="detail-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="detail-section-title" style="margin-bottom:0">Follow Ups</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="openFollowUpModal('${s.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Follow Up
+        </button>
+      </div>
+      <div id="followUpsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
+    </div>
   `;
 
   document.getElementById('detailPage').classList.add('active');
   window.scrollTo(0, 0);
+  loadFollowUps(s.id);
+}
+
+async function loadFollowUps(siteId) {
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/activities?siteId=' + encodeURIComponent(siteId), { headers: authHeaders() });
+    const data = await res.json();
+    const list = document.getElementById('followUpsList');
+    if (!list) return;
+    const activities = data.activities || [];
+    if (activities.length === 0) {
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No follow ups yet</div>';
+      return;
+    }
+    list.innerHTML = activities.map(a => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="background:${a.type === 'call' ? 'var(--blue-dim,rgba(59,130,246,.15))' : 'var(--purple-dim,rgba(139,92,246,.15))'};color:${a.type === 'call' ? 'var(--blue)' : 'var(--purple)'};border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
+            ${a.type === 'call' ? '📞 Call' : '🏃 Visit'}
+          </span>
+          <span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace">${formatDateTime(a.createdAt)}</span>
+          ${a.engineerName ? `<span style="font-size:11px;color:var(--text-muted)">· ${esc(a.engineerName)}</span>` : ''}
+        </div>
+        ${a.whatHappened ? `<div style="font-size:13px;margin-bottom:8px;white-space:pre-wrap">${esc(a.whatHappened)}</div>` : ''}
+        ${a.nextAction ? `<div style="font-size:12px;color:var(--text-muted);display:flex;gap:6px;align-items:flex-start">
+          <span style="color:var(--accent);font-weight:600;white-space:nowrap">Next:</span>
+          <span>${esc(a.nextAction)}${a.nextActionDate ? ` <span style="color:var(--text-muted)">· ${formatDate(a.nextActionDate)}</span>` : ''}</span>
+        </div>` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    const list = document.getElementById('followUpsList');
+    if (list) list.innerHTML = '<div style="color:var(--red);font-size:13px">Failed to load follow ups</div>';
+  }
+}
+
+let _followUpSiteId = null;
+function openFollowUpModal(siteId) {
+  _followUpSiteId = siteId;
+  document.getElementById('fu_type').value = 'call';
+  document.getElementById('fu_whatHappened').value = '';
+  document.getElementById('fu_nextAction').value = '';
+  document.getElementById('fu_nextActionDate').value = '';
+  document.getElementById('followUpModal').classList.add('open');
+}
+
+async function saveFollowUp() {
+  const type = document.getElementById('fu_type').value;
+  const whatHappened = document.getElementById('fu_whatHappened').value.trim();
+  const nextAction = document.getElementById('fu_nextAction').value.trim();
+  const nextActionDate = document.getElementById('fu_nextActionDate').value;
+
+  if (!whatHappened) { showToast('Please describe what happened', 'error'); return; }
+
+  const btn = document.getElementById('saveFollowUpBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/activities', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ siteId: _followUpSiteId, type, whatHappened, nextAction, nextActionDate }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save');
+    closeModal('followUpModal');
+    showToast('Follow up saved', 'success');
+    // Update local site data so pipeline section reflects new next action
+    const site = sites.find(x => x.id === _followUpSiteId);
+    if (site) {
+      if (nextAction) site.nextAction = nextAction;
+      if (nextActionDate) site.dueDate = nextActionDate;
+    }
+    showDetailView(_followUpSiteId);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ─── CLIENTS ────────────────────────────────────────────

@@ -94,3 +94,19 @@ CREATE POLICY "allow_all_client_products" ON client_products FOR ALL USING (true
 -- 8. Assign all existing sites to the seeded admin
 --    Run this AFTER seeding the admin account (see seed-admin.example.sql).
 -- UPDATE sites SET engineer_id = 'eng_admin_001' WHERE engineer_id IS NULL;
+
+-- 9. Site activities table (follow-up log)
+CREATE TABLE IF NOT EXISTS site_activities (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  engineer_id TEXT NOT NULL REFERENCES engineers(id),
+  type TEXT NOT NULL CHECK (type IN ('call', 'visit')),
+  what_happened TEXT NOT NULL DEFAULT '',
+  next_action TEXT NOT NULL DEFAULT '',
+  next_action_date DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_activities_site ON site_activities(site_id, created_at DESC);
+
+CREATE POLICY "allow_all_site_activities" ON site_activities FOR ALL USING (true) WITH CHECK (true);
