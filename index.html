@@ -885,6 +885,23 @@
   .pf-input option { background: var(--surface); color: var(--text); }
   .pf-full { grid-column: 1 / -1; }
 
+  /* OPERATION CONDITIONS (boiler-only leads) */
+  .oc-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .oc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 560px) { .oc-grid { grid-template-columns: 1fr; } }
+
   .equip-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
   .equip-chip { display: inline-flex; }
   .equip-chip input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -1852,16 +1869,13 @@
       <div class="form-field field-full">
         <label>Equipment Type</label>
         <div class="equip-chips">
-          <span class="equip-chip"><input type="checkbox" id="e_eq_boilers" value="Boilers"><label for="e_eq_boilers">Boilers</label></span>
-          <span class="equip-chip"><input type="checkbox" id="e_eq_cooling" value="Cooling Towers"><label for="e_eq_cooling">Cooling Towers</label></span>
-          <span class="equip-chip"><input type="checkbox" id="e_eq_chillers" value="Chillers"><label for="e_eq_chillers">Chillers</label></span>
-          <span class="equip-chip"><input type="checkbox" id="e_eq_pools" value="Swimming Pools"><label for="e_eq_pools">Swimming Pools</label></span>
+          <span class="equip-chip"><input type="checkbox" id="e_eq_boilers" value="Boilers" onchange="onEquipToggle('e')"><label for="e_eq_boilers">Boilers</label></span>
+          <span class="equip-chip"><input type="checkbox" id="e_eq_cooling" value="Cooling Towers" onchange="onEquipToggle('e')"><label for="e_eq_cooling">Cooling Towers</label></span>
+          <span class="equip-chip"><input type="checkbox" id="e_eq_chillers" value="Chillers" onchange="onEquipToggle('e')"><label for="e_eq_chillers">Chillers</label></span>
+          <span class="equip-chip"><input type="checkbox" id="e_eq_pools" value="Swimming Pools" onchange="onEquipToggle('e')"><label for="e_eq_pools">Swimming Pools</label></span>
         </div>
       </div>
-      <div class="form-field">
-        <label>Specs (tons, kW, etc.)</label>
-        <input type="text" id="e_specs">
-      </div>
+      <div class="form-field" id="e_specsBlock"></div>
       <div class="form-field">
         <label>Location</label>
         <select id="e_location"></select>
@@ -2454,15 +2468,119 @@ const EQUIP_OPTS = [
   { key: 'chillers', label: 'Chillers',       match: ['chiller'] },
   { key: 'pools',    label: 'Swimming Pools', match: ['swimming','pool'] },
 ];
-function equipChipsHTML(prefix, val) {
+function equipChipsHTML(prefix, val, onChange) {
   const lower = (val || '').toLowerCase();
+  const ch = onChange ? ` onchange="${onChange}"` : '';
   return '<div class="equip-chips">' + EQUIP_OPTS.map(o => {
     const checked = o.match.some(m => lower.includes(m)) ? ' checked' : '';
-    return `<span class="equip-chip"><input type="checkbox" id="${prefix}_${o.key}" value="${o.label}"${checked}><label for="${prefix}_${o.key}">${o.label}</label></span>`;
+    return `<span class="equip-chip"><input type="checkbox" id="${prefix}_${o.key}" value="${o.label}"${checked}${ch}><label for="${prefix}_${o.key}">${o.label}</label></span>`;
   }).join('') + '</div>';
 }
 function readEquipChips(prefix) {
   return EQUIP_OPTS.filter(o => document.getElementById(`${prefix}_${o.key}`)?.checked).map(o => o.label).join(', ');
+}
+
+// ─── OPERATION CONDITIONS (boiler-only leads) ───────────
+const OC_FIELDS = [
+  { key: 'pressure',    label: 'Boiler Operating Pressure' },
+  { key: 'capacity',    label: 'Boiler Capacity' },
+  { key: 'hoursPerDay', label: 'Operating Time per Day' },
+  { key: 'daysPerWeek', label: 'Operating Time per Week' },
+  { key: 'feedTemp',    label: 'Feed Tank / Deaerator Temp' },
+  { key: 'makeup',      label: 'Quality of Makeup' },
+];
+
+// A lead qualifies for Operation Conditions when its only equipment is boilers.
+function isBoilerOnly(equipment) {
+  const parts = (equipment || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  return parts.length > 0 && parts.every(p => p.includes('boiler'));
+}
+
+// Operation conditions live inside the existing `specs` text column as a small
+// JSON object tagged with `_oc`, so no database migration is required.
+function parseOC(specs) {
+  if (typeof specs !== 'string') return null;
+  const t = specs.trim();
+  if (!t.startsWith('{')) return null;
+  try {
+    const o = JSON.parse(t);
+    if (o && typeof o === 'object' && o._oc) return o;
+  } catch (_) {}
+  return null;
+}
+function serializeOC(obj) {
+  const out = { _oc: 1 };
+  let has = false;
+  OC_FIELDS.forEach(f => {
+    const v = (obj[f.key] || '').trim();
+    if (v) { out[f.key] = v; has = true; }
+  });
+  return has ? JSON.stringify(out) : '';
+}
+// Readable one-line version for table / CSV / generic display.
+function formatSpecs(specs) {
+  const oc = parseOC(specs);
+  if (!oc) return specs || '';
+  return OC_FIELDS.filter(f => oc[f.key]).map(f => `${f.label}: ${oc[f.key]}`).join(' · ');
+}
+
+// Render the specs / operation-conditions area into a container.
+// prefix is 'e' (edit modal) or 'pv' (AI preview).
+function renderSpecsBlock(prefix, specs) {
+  const container = document.getElementById(prefix + '_specsBlock');
+  if (!container) return;
+  const variant = prefix === 'pv' ? 'preview' : 'edit';
+  const fieldCls = variant === 'preview' ? 'preview-field' : 'form-field';
+  const fullCls  = variant === 'preview' ? 'pf-full' : 'field-full';
+  const inputCls = variant === 'preview' ? 'pf-input' : '';
+  const lbl = (t) => variant === 'preview' ? `<div class="pf-label">${t}</div>` : `<label>${t}</label>`;
+  if (isBoilerOnly(readEquipChips(prefix + '_eq'))) {
+    container.className = fullCls;
+    let oc = parseOC(specs);
+    if (!oc) {
+      // Preserve any pre-existing free-text specs (legacy or AI-extracted)
+      oc = {};
+      const legacy = (specs || '').trim();
+      if (legacy) oc.capacity = legacy;
+    }
+    container.innerHTML =
+      `<div class="oc-title">Operation Conditions</div><div class="oc-grid">` +
+      OC_FIELDS.map(f =>
+        `<div class="${fieldCls}">${lbl(f.label)}<input class="${inputCls}" type="text" id="${prefix}_oc_${f.key}" value="${esc(oc[f.key] || '')}"></div>`
+      ).join('') + `</div>`;
+  } else {
+    container.className = fieldCls;
+    const val = parseOC(specs) ? '' : (specs || '');
+    container.innerHTML = `${lbl('Specs (tons, kW, etc.)')}<input class="${inputCls}" type="text" id="${prefix}_specs" value="${esc(val)}">`;
+  }
+}
+// Read whatever is currently rendered in the specs block (by DOM presence).
+function readSpecsBlock(prefix) {
+  if (document.getElementById(`${prefix}_oc_${OC_FIELDS[0].key}`)) {
+    const obj = {};
+    OC_FIELDS.forEach(f => { obj[f.key] = document.getElementById(`${prefix}_oc_${f.key}`)?.value || ''; });
+    return serializeOC(obj);
+  }
+  return document.getElementById(`${prefix}_specs`)?.value || '';
+}
+// Re-render when equipment selection changes, preserving entered values.
+function onEquipToggle(prefix) {
+  renderSpecsBlock(prefix, readSpecsBlock(prefix));
+}
+// Detail-page cards for the specs / operation-conditions section.
+function specsDetailHTML(s) {
+  const oc = parseOC(s.specs);
+  if (oc) {
+    return OC_FIELDS.map(f =>
+      `<div class="detail-card">
+        <div class="detail-card-label">${f.label}</div>
+        <div class="detail-card-value${oc[f.key] ? '' : ' empty'}">${oc[f.key] ? esc(oc[f.key]) : 'Not set'}</div>
+      </div>`).join('');
+  }
+  return `<div class="detail-card">
+      <div class="detail-card-label">Specs</div>
+      <div class="detail-card-value${s.specs ? '' : ' empty'}">${s.specs ? `<span class="eq-spec">${esc(s.specs)}</span>` : 'Not set'}</div>
+    </div>`;
 }
 
 const STATUS_SHORT = {
@@ -2767,7 +2885,7 @@ function renderTable() {
       <td>
         <div class="equipment-info">
           <div class="eq-type">${esc(s.equipment || '—')}</div>
-          <div class="eq-spec">${esc(s.specs || '')}</div>
+          <div class="eq-spec">${esc(formatSpecs(s.specs))}</div>
         </div>
       </td>
       <td><div class="location-tag">📍 ${esc(s.location || '—')}</div></td>
@@ -3035,9 +3153,9 @@ function renderPreview(entry) {
     ${tf('pv_phone', 'Phone', entry.phone)}
     <div class="preview-field">
       <div class="pf-label">Equipment</div>
-      ${equipChipsHTML('pv_eq', entry.equipment)}
+      ${equipChipsHTML('pv_eq', entry.equipment, "onEquipToggle('pv')")}
     </div>
-    ${tf('pv_specs', 'Specs', entry.specs)}
+    <div class="preview-field" id="pv_specsBlock"></div>
     <div class="preview-field">
       <div class="pf-label">Location</div>
       <select class="pf-input" id="pv_location">${locationOptionsHTML(entry.location)}</select>
@@ -3058,6 +3176,7 @@ function renderPreview(entry) {
     ${tf('pv_nextAction', 'Next Action', entry.nextAction, true)}
     ${tf('pv_notes', 'Notes', entry.notes, true)}
   `;
+  renderSpecsBlock('pv', entry.specs);
 }
 
 async function confirmAdd() {
@@ -3068,7 +3187,7 @@ async function confirmAdd() {
     contact:    document.getElementById('pv_contact')?.value ?? pendingEntry.contact,
     phone:      document.getElementById('pv_phone')?.value ?? pendingEntry.phone,
     equipment:  readEquipChips('pv_eq') || pendingEntry.equipment,
-    specs:      document.getElementById('pv_specs')?.value ?? pendingEntry.specs,
+    specs:      readSpecsBlock('pv'),
     location:   document.getElementById('pv_location')?.value ?? pendingEntry.location,
     status:     document.getElementById('pv_status')?.value ?? pendingEntry.status,
     dueDate:    document.getElementById('pv_dueDate')?.value ?? pendingEntry.dueDate,
@@ -3107,7 +3226,7 @@ function openEdit(id) {
   document.getElementById('e_eq_cooling').checked = eqLower.includes('cooling') || eqLower.includes('tower');
   document.getElementById('e_eq_chillers').checked = eqLower.includes('chiller');
   document.getElementById('e_eq_pools').checked = eqLower.includes('swimming') || eqLower.includes('pool');
-  document.getElementById('e_specs').value = s.specs || '';
+  renderSpecsBlock('e', s.specs);
   document.getElementById('e_location').innerHTML = locationOptionsHTML(s.location);
   document.getElementById('e_status').value = s.status || 'Potential Prospect';
   document.getElementById('e_dueDate').value = s.dueDate || '';
@@ -3128,7 +3247,7 @@ async function saveEdit() {
     contact: document.getElementById('e_contact').value,
     phone: document.getElementById('e_phone').value,
     equipment: readEquipChips('e_eq'),
-    specs: document.getElementById('e_specs').value,
+    specs: readSpecsBlock('e'),
     location: document.getElementById('e_location').value,
     status: document.getElementById('e_status').value,
     dueDate: document.getElementById('e_dueDate').value,
@@ -3218,7 +3337,7 @@ function exportExcel() {
     return match && statusMatch;
   });
   const rows = filtered.map(s => [
-    s.name, s.contact, s.phone, s.equipment, s.specs,
+    s.name, s.contact, s.phone, s.equipment, formatSpecs(s.specs),
     s.location, s.status, s.nextAction, s.dueDate, s.notes
   ]);
 
@@ -3464,12 +3583,7 @@ function showDetailView(id) {
           <div class="detail-card-label">Equipment Type</div>
           <div class="detail-card-value${s.equipment ? '' : ' empty'}">${esc(s.equipment || 'Not set')}</div>
         </div>
-        <div class="detail-card">
-          <div class="detail-card-label">Specs</div>
-          <div class="detail-card-value${s.specs ? '' : ' empty'}">
-            ${s.specs ? `<span class="eq-spec">${esc(s.specs)}</span>` : 'Not set'}
-          </div>
-        </div>
+        ${specsDetailHTML(s)}
       </div>
     </div>
 
