@@ -908,6 +908,27 @@
   .oc-equip:first-child { padding-top: 0; border-top: none; }
   .oc-equip:last-child { padding-bottom: 0; }
   .oc-empty { font-size: 12px; color: var(--text-muted); font-style: italic; }
+  .oc-instance {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .oc-inst-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .oc-inst-head .oc-title { margin-bottom: 0; }
+  .oc-remove {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 13px; line-height: 1;
+    padding: 4px 7px; border-radius: 6px;
+  }
+  .oc-remove:hover { color: #e5484d; background: var(--bg); }
+  .oc-add {
+    background: none; cursor: pointer;
+    border: 1px dashed var(--border); border-radius: 8px;
+    color: var(--accent); font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 8px 12px; margin-top: 2px;
+  }
+  .oc-add:hover { border-color: var(--accent); background: var(--accent-dim); }
 
   /* Detail page: per-equipment operation conditions */
   .oc-detail-head {
@@ -2561,7 +2582,9 @@ function setEquipChips(prefix, equipment) {
 
 // Operation conditions live inside the existing `specs` text column as a small
 // JSON object tagged with `_oc`, so no database migration is required.
-// Returns a per-equipment map { boilers: {pressure:...}, ... } or null.
+// Each equipment type holds an ARRAY of instances (e.g. Boiler 1, Boiler 2),
+// so parseOC returns a map { boilers: [{pressure:...}, ...], ... } or null.
+const singular = (label) => label.replace(/s$/i, '');
 function parseOC(specs) {
   if (typeof specs !== 'string') return null;
   const t = specs.trim();
@@ -2571,27 +2594,31 @@ function parseOC(specs) {
   const map = {};
   let nested = false;
   Object.keys(OC_SCHEMA).forEach(k => {
-    if (o[k] && typeof o[k] === 'object') { map[k] = o[k]; nested = true; }
+    if (o[k] == null) return;
+    nested = true;
+    if (Array.isArray(o[k])) map[k] = o[k].filter(x => x && typeof x === 'object');
+    else if (typeof o[k] === 'object') map[k] = [o[k]]; // legacy single instance -> array
   });
   if (!nested) {
-    // Legacy flat layout (boiler-only era) -> treat top-level fields as boilers.
+    // Legacy flat layout (boiler-only era) -> treat top-level fields as one boiler.
     const b = {};
     OC_SCHEMA.boilers.forEach(f => { if (o[f.key]) b[f.key] = o[f.key]; });
-    if (Object.keys(b).length) map.boilers = b;
+    if (Object.keys(b).length) map.boilers = [b];
   }
   return map;
 }
 function serializeOC(map) {
-  const out = { _oc: 1 };
+  const out = { _oc: 2 };
   let has = false;
   Object.keys(OC_SCHEMA).forEach(k => {
     const fields = OC_SCHEMA[k];
     if (!fields.length) return;
-    const vals = map[k] || {};
-    const clean = {};
-    let kh = false;
-    fields.forEach(f => { const v = (vals[f.key] || '').trim(); if (v) { clean[f.key] = v; kh = true; } });
-    if (kh) { out[k] = clean; has = true; }
+    const arr = (map[k] || []).map(inst => {
+      const clean = {};
+      fields.forEach(f => { const v = (inst[f.key] || '').trim(); if (v) clean[f.key] = v; });
+      return clean;
+    }).filter(inst => Object.keys(inst).length);
+    if (arr.length) { out[k] = arr; has = true; }
   });
   return has ? JSON.stringify(out) : '';
 }
@@ -2601,16 +2628,19 @@ function formatSpecs(specs) {
   if (!oc) return specs || '';
   const parts = [];
   Object.keys(OC_SCHEMA).forEach(k => {
-    const vals = oc[k]; if (!vals) return;
-    const strs = OC_SCHEMA[k].filter(f => vals[f.key]).map(f => `${f.label}: ${vals[f.key]}`);
-    if (strs.length) parts.push(`${equipLabel(k)} → ${strs.join(' · ')}`);
+    const arr = oc[k]; if (!arr || !arr.length) return;
+    arr.forEach((inst, i) => {
+      const strs = OC_SCHEMA[k].filter(f => inst[f.key]).map(f => `${f.label}: ${inst[f.key]}`);
+      if (!strs.length) return;
+      const name = arr.length > 1 ? `${singular(equipLabel(k))} ${i + 1}` : equipLabel(k);
+      parts.push(`${name} → ${strs.join(' · ')}`);
+    });
   });
   return parts.join(' | ');
 }
 
-// Render the per-equipment operation-conditions area into a container.
-// prefix is 'e' (edit), 'pv' (AI preview) or 'c' (client modal).
-function renderSpecsBlock(prefix, specs) {
+// Render the per-equipment operation-conditions area from a map of instances.
+function renderOC(prefix, map, plainSpecs) {
   const container = document.getElementById(prefix + '_specsBlock');
   if (!container) return;
   const variant = prefix === 'pv' ? 'preview' : 'edit';
@@ -2621,53 +2651,88 @@ function renderSpecsBlock(prefix, specs) {
   const keys = equipKeys(readEquipChips(prefix + '_eq'));
 
   if (!keys.length) {
-    // No equipment selected -> single free-text Specs field (fallback).
     container.className = fieldCls;
-    const val = parseOC(specs) ? '' : (specs || '');
+    const val = (plainSpecs != null) ? plainSpecs : (document.getElementById(`${prefix}_specs`)?.value || '');
     container.innerHTML = `${lbl('Specs (tons, kW, etc.)')}<input class="${inputCls}" type="text" id="${prefix}_specs" value="${esc(val)}">`;
     return;
-  }
-
-  const oc = parseOC(specs) || {};
-  // Preserve any legacy free-text specs into the boiler capacity when applicable.
-  if (keys.includes('boilers') && !oc.boilers) {
-    const legacy = (parseOC(specs) ? '' : (specs || '')).trim();
-    if (legacy) oc.boilers = { capacity: legacy };
   }
 
   container.className = fullCls;
   container.innerHTML = keys.map(k => {
     const fields = OC_SCHEMA[k];
-    const vals = oc[k] || {};
+    const label = equipLabel(k);
     if (!fields.length) {
-      return `<div class="oc-equip"><div class="oc-title">${esc(equipLabel(k))}</div>` +
-        `<div class="oc-empty">No operation conditions yet</div></div>`;
+      return `<div class="oc-equip"><div class="oc-title">${esc(label)}</div><div class="oc-empty">No operation conditions yet</div></div>`;
     }
-    return `<div class="oc-equip"><div class="oc-title">${esc(equipLabel(k))} — Operation Conditions</div><div class="oc-grid">` +
-      fields.map(f =>
-        `<div class="${fieldCls}">${lbl(f.label)}<input class="${inputCls}" type="text" id="${prefix}_oc_${k}_${f.key}" value="${esc(vals[f.key] || '')}"></div>`
-      ).join('') + `</div></div>`;
+    let insts = map[k] || [];
+    if (!insts.length) insts = [{}];
+    const instHTML = insts.map((inst, idx) => {
+      const single = insts.length <= 1;
+      const title = single ? `${label} — Operation Conditions` : `${singular(label)} ${idx + 1}`;
+      const removeBtn = insts.length > 1
+        ? `<button type="button" class="oc-remove" onclick="removeOCInstance('${prefix}','${k}',${idx})" title="Remove">✕</button>` : '';
+      return `<div class="oc-instance" data-eq="${k}" data-idx="${idx}">` +
+        `<div class="oc-inst-head"><span class="oc-title">${esc(title)}</span>${removeBtn}</div>` +
+        `<div class="oc-grid">` +
+        fields.map(f => `<div class="${fieldCls}">${lbl(f.label)}<input class="${inputCls}" type="text" id="${prefix}_oc_${k}_${idx}_${f.key}" value="${esc(inst[f.key] || '')}"></div>`).join('') +
+        `</div></div>`;
+    }).join('');
+    return `<div class="oc-equip" data-eq="${k}">${instHTML}` +
+      `<button type="button" class="oc-add" onclick="addOCInstance('${prefix}','${k}')">+ Add another ${esc(singular(label))}</button></div>`;
   }).join('');
 }
-// Read the per-equipment values currently rendered in the specs block.
+// Render from a stored specs string (used when opening a form / preview).
+function renderSpecsBlock(prefix, specs) {
+  const map = parseOC(specs) || {};
+  const keys = equipKeys(readEquipChips(prefix + '_eq'));
+  // Preserve any legacy free-text specs into the first boiler's capacity.
+  if (keys.includes('boilers') && !(map.boilers && map.boilers.length)) {
+    const legacy = (parseOC(specs) ? '' : (specs || '')).trim();
+    if (legacy) map.boilers = [{ capacity: legacy }];
+  }
+  renderOC(prefix, map, parseOC(specs) ? '' : (specs || ''));
+}
+// Read the per-equipment instances currently rendered in the specs block (from the DOM).
+function currentOCMap(prefix) {
+  const container = document.getElementById(prefix + '_specsBlock');
+  const map = {};
+  if (!container) return map;
+  Object.keys(OC_SCHEMA).forEach(k => {
+    const fields = OC_SCHEMA[k];
+    if (!fields.length) return;
+    const insts = [...container.querySelectorAll(`.oc-instance[data-eq="${k}"]`)];
+    if (!insts.length) return;
+    map[k] = insts.map(el => {
+      const idx = el.getAttribute('data-idx');
+      const vals = {};
+      fields.forEach(f => { vals[f.key] = document.getElementById(`${prefix}_oc_${k}_${idx}_${f.key}`)?.value || ''; });
+      return vals;
+    });
+  });
+  return map;
+}
 function readSpecsBlock(prefix) {
   const keys = equipKeys(readEquipChips(prefix + '_eq'));
   if (!keys.length) return document.getElementById(`${prefix}_specs`)?.value || '';
-  const map = {};
-  keys.forEach(k => {
-    const fields = OC_SCHEMA[k];
-    if (!fields.length) return;
-    const vals = {};
-    fields.forEach(f => { vals[f.key] = document.getElementById(`${prefix}_oc_${k}_${f.key}`)?.value || ''; });
-    map[k] = vals;
-  });
-  return serializeOC(map);
+  return serializeOC(currentOCMap(prefix));
 }
 // Re-render when equipment selection changes, preserving entered values.
-function onEquipToggle(prefix) {
-  renderSpecsBlock(prefix, readSpecsBlock(prefix));
+function onEquipToggle(prefix) { renderOC(prefix, currentOCMap(prefix)); }
+// Add another instance of an equipment type (e.g. a second boiler).
+function addOCInstance(prefix, key) {
+  const map = currentOCMap(prefix);
+  (map[key] = map[key] || []);
+  if (!map[key].length) map[key].push({}); // the implicit first instance
+  map[key].push({});
+  renderOC(prefix, map);
 }
-// Detail-page cards: each equipment listed on its own with its conditions under it.
+// Remove a specific instance.
+function removeOCInstance(prefix, key, idx) {
+  const map = currentOCMap(prefix);
+  if (map[key]) map[key].splice(idx, 1);
+  renderOC(prefix, map);
+}
+// Detail-page cards: each equipment (and each unit) listed on its own with its conditions.
 function equipmentDetailHTML(item) {
   const keys = equipKeys(item.equipment);
   const oc = parseOC(item.specs) || {};
@@ -2680,14 +2745,19 @@ function equipmentDetailHTML(item) {
   }
   return keys.map(k => {
     const fields = OC_SCHEMA[k];
-    const vals = oc[k] || {};
-    const inner = fields.length
-      ? `<div class="oc-detail-grid">` + fields.map(f =>
-          `<div class="oc-detail-item"><span class="oc-detail-label">${esc(f.label)}</span><span class="oc-detail-val${vals[f.key] ? '' : ' empty'}">${vals[f.key] ? esc(vals[f.key]) : '—'}</span></div>`
-        ).join('') + `</div>`
-      : `<div class="oc-empty">No operation conditions yet</div>`;
-    return `<div class="detail-card span-3 oc-detail-card">
-      <div class="oc-detail-head">${esc(equipLabel(k))}</div>${inner}</div>`;
+    const label = equipLabel(k);
+    if (!fields.length) {
+      return `<div class="detail-card span-3 oc-detail-card"><div class="oc-detail-head">${esc(label)}</div><div class="oc-empty">No operation conditions yet</div></div>`;
+    }
+    let insts = oc[k] || [];
+    if (!insts.length) insts = [{}];
+    return insts.map((inst, idx) => {
+      const head = insts.length > 1 ? `${singular(label)} ${idx + 1}` : label;
+      const grid = `<div class="oc-detail-grid">` + fields.map(f =>
+        `<div class="oc-detail-item"><span class="oc-detail-label">${esc(f.label)}</span><span class="oc-detail-val${inst[f.key] ? '' : ' empty'}">${inst[f.key] ? esc(inst[f.key]) : '—'}</span></div>`
+      ).join('') + `</div>`;
+      return `<div class="detail-card span-3 oc-detail-card"><div class="oc-detail-head">${esc(head)}</div>${grid}</div>`;
+    }).join('');
   }).join('');
 }
 
