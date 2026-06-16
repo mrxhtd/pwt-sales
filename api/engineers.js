@@ -20,6 +20,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('engineers')
         .select('id, username, full_name, role, is_active, created_at')
+        .eq('is_active', true)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return res.status(200).json({
