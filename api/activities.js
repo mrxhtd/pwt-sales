@@ -99,6 +99,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('activities api error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    const msg = err?.message || String(err);
+    // Table not set up yet
+    if (msg.includes('relation') && msg.includes('does not exist')) {
+      return res.status(503).json({ error: 'setup_required', detail: msg });
+    }
+    return res.status(500).json({ error: msg });
   }
 }

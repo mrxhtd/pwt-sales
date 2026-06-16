@@ -3555,7 +3555,13 @@ async function saveFollowUp() {
       body: JSON.stringify({ siteId: _followUpSiteId, type, whatHappened, nextAction, nextActionDate }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save');
+    if (!res.ok) {
+      if (data.error === 'setup_required') {
+        showToast('Database table missing — run the migration SQL in Supabase (see console)', 'error', 6000);
+        console.error('Run this SQL in Supabase SQL Editor:\n\nCREATE TABLE IF NOT EXISTS site_activities (\n  id TEXT PRIMARY KEY,\n  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,\n  engineer_id TEXT NOT NULL REFERENCES engineers(id),\n  type TEXT NOT NULL CHECK (type IN (\'call\', \'visit\')),\n  what_happened TEXT NOT NULL DEFAULT \'\',\n  next_action TEXT NOT NULL DEFAULT \'\',\n  next_action_date DATE,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS idx_site_activities_site ON site_activities(site_id, created_at DESC);');
+      }
+      throw new Error(data.error || data.detail || 'Failed to save');
+    }
     closeModal('followUpModal');
     showToast('Follow up saved', 'success');
     // Update local site data so pipeline section reflects new next action
