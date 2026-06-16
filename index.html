@@ -914,8 +914,21 @@
     padding: 12px 14px;
     margin-bottom: 10px;
   }
-  .oc-inst-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .oc-inst-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
   .oc-inst-head .oc-title { margin-bottom: 0; }
+  .oc-inst-controls { display: inline-flex; align-items: center; gap: 6px; }
+  .oc-state {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 4px 8px; cursor: pointer; outline: none;
+  }
+  .oc-state:focus { border-color: var(--accent); }
+  .oc-state option { background: var(--card); }
+  .oc-state-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle;
+  }
+  .oc-state-operating { background: rgba(46,160,67,0.15); color: #2ea043; }
+  .oc-state-standby { background: rgba(210,153,34,0.18); color: #d29922; }
   .oc-remove {
     background: none; border: none; cursor: pointer;
     color: var(--text-muted); font-size: 13px; line-height: 1;
@@ -2563,6 +2576,11 @@ const OC_SCHEMA = {
   chillers: [],
   pools:    [],
 };
+// Equipment types that offer an Operating/Standby state per unit (shown only
+// when there is more than one unit of that type). Stored per instance as `_state`.
+const OC_STATES = {
+  boilers: ['Operating', 'Standby'],
+};
 const equipLabel = (key) => (EQUIP_OPTS.find(o => o.key === key) || {}).label || key;
 
 // Which equipment keys (in EQUIP_OPTS order) are present in an equipment string.
@@ -2616,8 +2634,9 @@ function serializeOC(map) {
     const arr = (map[k] || []).map(inst => {
       const clean = {};
       fields.forEach(f => { const v = (inst[f.key] || '').trim(); if (v) clean[f.key] = v; });
+      if (inst._state && OC_STATES[k]) clean._state = inst._state;
       return clean;
-    }).filter(inst => Object.keys(inst).length);
+    }).filter(inst => fields.some(f => inst[f.key])); // keep only units with real data
     if (arr.length) { out[k] = arr; has = true; }
   });
   return has ? JSON.stringify(out) : '';
@@ -2632,7 +2651,8 @@ function formatSpecs(specs) {
     arr.forEach((inst, i) => {
       const strs = OC_SCHEMA[k].filter(f => inst[f.key]).map(f => `${f.label}: ${inst[f.key]}`);
       if (!strs.length) return;
-      const name = arr.length > 1 ? `${singular(equipLabel(k))} ${i + 1}` : equipLabel(k);
+      let name = arr.length > 1 ? `${singular(equipLabel(k))} ${i + 1}` : equipLabel(k);
+      if (arr.length > 1 && inst._state && OC_STATES[k]) name += ` (${inst._state})`;
       parts.push(`${name} → ${strs.join(' · ')}`);
     });
   });
@@ -2666,13 +2686,18 @@ function renderOC(prefix, map, plainSpecs) {
     }
     let insts = map[k] || [];
     if (!insts.length) insts = [{}];
+    const states = OC_STATES[k];
     const instHTML = insts.map((inst, idx) => {
       const single = insts.length <= 1;
       const title = single ? `${label} — Operation Conditions` : `${singular(label)} ${idx + 1}`;
       const removeBtn = insts.length > 1
         ? `<button type="button" class="oc-remove" onclick="removeOCInstance('${prefix}','${k}',${idx})" title="Remove">✕</button>` : '';
+      const stateSel = (states && insts.length > 1)
+        ? `<select class="oc-state" id="${prefix}_ocstate_${k}_${idx}">` +
+          states.map(s => `<option value="${s}"${(inst._state || states[0]) === s ? ' selected' : ''}>${s}</option>`).join('') +
+          `</select>` : '';
       return `<div class="oc-instance" data-eq="${k}" data-idx="${idx}">` +
-        `<div class="oc-inst-head"><span class="oc-title">${esc(title)}</span>${removeBtn}</div>` +
+        `<div class="oc-inst-head"><span class="oc-title">${esc(title)}</span><span class="oc-inst-controls">${stateSel}${removeBtn}</span></div>` +
         `<div class="oc-grid">` +
         fields.map(f => `<div class="${fieldCls}">${lbl(f.label)}<input class="${inputCls}" type="text" id="${prefix}_oc_${k}_${idx}_${f.key}" value="${esc(inst[f.key] || '')}"></div>`).join('') +
         `</div></div>`;
@@ -2706,6 +2731,8 @@ function currentOCMap(prefix) {
       const idx = el.getAttribute('data-idx');
       const vals = {};
       fields.forEach(f => { vals[f.key] = document.getElementById(`${prefix}_oc_${k}_${idx}_${f.key}`)?.value || ''; });
+      const stateEl = document.getElementById(`${prefix}_ocstate_${k}_${idx}`);
+      if (stateEl) vals._state = stateEl.value;
       return vals;
     });
   });
@@ -2753,10 +2780,12 @@ function equipmentDetailHTML(item) {
     if (!insts.length) insts = [{}];
     return insts.map((inst, idx) => {
       const head = insts.length > 1 ? `${singular(label)} ${idx + 1}` : label;
+      const badge = (insts.length > 1 && OC_STATES[k] && inst._state)
+        ? `<span class="oc-state-badge oc-state-${inst._state.toLowerCase()}">${esc(inst._state)}</span>` : '';
       const grid = `<div class="oc-detail-grid">` + fields.map(f =>
         `<div class="oc-detail-item"><span class="oc-detail-label">${esc(f.label)}</span><span class="oc-detail-val${inst[f.key] ? '' : ' empty'}">${inst[f.key] ? esc(inst[f.key]) : '—'}</span></div>`
       ).join('') + `</div>`;
-      return `<div class="detail-card span-3 oc-detail-card"><div class="oc-detail-head">${esc(head)}</div>${grid}</div>`;
+      return `<div class="detail-card span-3 oc-detail-card"><div class="oc-detail-head">${esc(head)}${badge}</div>${grid}</div>`;
     }).join('');
   }).join('');
 }
