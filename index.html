@@ -4485,9 +4485,12 @@ function renderEngineerTable() {
       <td><span style="font-family:'DM Mono',monospace;font-size:12px">${esc(e.username)}</span></td>
       <td><span class="badge ${e.role === 'admin' ? 'badge-hp' : 'badge-qp'}" style="font-size:11px;padding:3px 10px;">${e.role}</span></td>
       <td><span class="badge ${e.isActive ? 'badge-active' : 'badge-stock'}" style="font-size:11px;padding:3px 10px;">${e.isActive ? 'Active' : 'Disabled'}</span></td>
-      <td>
+      <td style="display:flex;gap:6px">
         <button class="row-btn" onclick="event.stopPropagation(); openEditEngineer('${e.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+        <button class="row-btn" style="color:var(--red,#e05c5c)" onclick="event.stopPropagation(); removeEngineer('${e.id}', '${esc(e.fullName)}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </td>
     </tr>
@@ -4535,6 +4538,22 @@ async function saveEngineer() {
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     closeModal('engineerModal');
     showToast(editingEngineerId ? 'Engineer updated' : 'Engineer added', 'success');
+    await loadEngineers();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function removeEngineer(id, name) {
+  if (!confirm(`Remove ${name}? They will be deactivated and can no longer log in.`)) return;
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/engineers?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to remove engineer');
+    showToast(`${name} removed`, 'success');
     await loadEngineers();
   } catch (err) {
     showToast(err.message, 'error');
