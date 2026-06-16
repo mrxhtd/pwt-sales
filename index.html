@@ -2257,39 +2257,6 @@ function updateNotifButton() {
 // Register SW on page load
 initServiceWorker();
 
-// ─── GEOLOCATION TRACKING ──────────────────────────────
-let _locationInterval = null;
-
-function startLocationTracking() {
-  if (!('geolocation' in navigator)) return;
-  // Send location immediately, then every 10 minutes
-  sendLocation();
-  if (_locationInterval) clearInterval(_locationInterval);
-  _locationInterval = setInterval(sendLocation, 10 * 60 * 1000);
-}
-
-function sendLocation() {
-  if (!getAuthToken()) { console.warn('[loc] no auth token'); return; }
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      console.log('[loc] got position:', pos.coords.latitude.toFixed(4), pos.coords.longitude.toFixed(4));
-      fetch(FUNCTIONS_BASE + '/location', {
-        method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      }).then(r => {
-        if (!r.ok) r.text().then(t => console.error('[loc] server error', r.status, t));
-        else console.log('[loc] sent ok');
-      }).catch(err => console.error('[loc] network error', err));
-    },
-    (err) => console.warn('[loc] geolocation error', err.code, err.message),
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-  );
-}
-
-function stopLocationTracking() {
-  if (_locationInterval) { clearInterval(_locationInterval); _locationInterval = null; }
-}
 
 // ─── LOCATION MAP (admin) ──────────────────────────────
 let _locationMap = null;
@@ -2570,9 +2537,6 @@ async function doLogin() {
 
 async function loadDataAfterLogin() {
   try {
-    // Start location tracking for all engineers
-    startLocationTracking();
-
     const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
@@ -2608,7 +2572,6 @@ async function loadData() {
     // Auth valid — immediately show app with skeletons (hide splash + login)
     hideLogin();
     showLeadSkeletons();
-    startLocationTracking();
 
     // Fetch sites
     const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
@@ -3275,7 +3238,6 @@ function toggleTheme() {
 applyTheme(localStorage.getItem('pwt_theme') || 'dark');
 
 async function logout() {
-  stopLocationTracking();
   await fetch(FUNCTIONS_BASE + '/auth', { method: 'DELETE', headers: authHeaders() }).catch(() => {});
   clearAuthToken();
   sites = [];
