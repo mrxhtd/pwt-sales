@@ -1864,7 +1864,7 @@
       </div>
       <div class="form-field">
         <label>Location</label>
-        <input type="text" id="e_location">
+        <select id="e_location"></select>
       </div>
       <div class="form-field">
         <label>Status</label>
@@ -1956,7 +1956,7 @@
       </div>
       <div class="form-field field-full">
         <label>Location</label>
-        <input type="text" id="c_location">
+        <select id="c_location"></select>
       </div>
       <div class="form-field field-full">
         <label>Notes</label>
@@ -3001,6 +3001,23 @@ async function processAI() {
   }
 }
 
+const LOCATION_OPTIONS = ['Alexandria', 'Borg El Arab', 'Al Amryah', 'El sadat', 'October', 'North Coast', 'Obour', '10th Ramadan', 'Other'];
+function locationOptionsHTML(cur) {
+  const val = (cur || '').trim();
+  let opts = '<option value="">Select location…</option>';
+  let matched = false;
+  for (const o of LOCATION_OPTIONS) {
+    const isSel = val && val.toLowerCase() === o.toLowerCase();
+    if (isSel) matched = true;
+    opts += `<option value="${esc(o)}"${isSel ? ' selected' : ''}>${esc(o)}</option>`;
+  }
+  // Preserve any pre-existing custom value (e.g. AI-extracted) that isn't in the list
+  if (val && !matched) {
+    opts = `<option value="${esc(val)}" selected>${esc(val)}</option>` + opts;
+  }
+  return opts;
+}
+
 function renderPreview(entry) {
   const VALID = ['Potential Prospect', 'Qualified Prospect', 'Interested Prospect', 'Hot Prospect'];
   const status = VALID.includes(entry.status) ? entry.status : 'Potential Prospect';
@@ -3021,7 +3038,10 @@ function renderPreview(entry) {
       ${equipChipsHTML('pv_eq', entry.equipment)}
     </div>
     ${tf('pv_specs', 'Specs', entry.specs)}
-    ${tf('pv_location', 'Location', entry.location)}
+    <div class="preview-field">
+      <div class="pf-label">Location</div>
+      <select class="pf-input" id="pv_location">${locationOptionsHTML(entry.location)}</select>
+    </div>
     <div class="preview-field">
       <div class="pf-label">Status</div>
       <select class="pf-input" id="pv_status">${sel([
@@ -3088,7 +3108,7 @@ function openEdit(id) {
   document.getElementById('e_eq_chillers').checked = eqLower.includes('chiller');
   document.getElementById('e_eq_pools').checked = eqLower.includes('swimming') || eqLower.includes('pool');
   document.getElementById('e_specs').value = s.specs || '';
-  document.getElementById('e_location').value = s.location || '';
+  document.getElementById('e_location').innerHTML = locationOptionsHTML(s.location);
   document.getElementById('e_status').value = s.status || 'Potential Prospect';
   document.getElementById('e_dueDate').value = s.dueDate || '';
   document.getElementById('e_nextAction').value = s.nextAction || '';
@@ -3736,7 +3756,7 @@ function openAddClientModal() {
   document.getElementById('c_name').value = '';
   document.getElementById('c_contact').value = '';
   document.getElementById('c_phone').value = '';
-  document.getElementById('c_location').value = '';
+  document.getElementById('c_location').innerHTML = locationOptionsHTML('');
   document.getElementById('c_notes').value = '';
   document.getElementById('deleteClientBtn').style.display = 'none';
   document.getElementById('clientModal').classList.add('open');
@@ -3750,7 +3770,7 @@ function openEditClient(id) {
   document.getElementById('c_name').value = c.name;
   document.getElementById('c_contact').value = c.contact;
   document.getElementById('c_phone').value = c.phone;
-  document.getElementById('c_location').value = c.location;
+  document.getElementById('c_location').innerHTML = locationOptionsHTML(c.location);
   document.getElementById('c_notes').value = c.notes;
   document.getElementById('deleteClientBtn').style.display = '';
   document.getElementById('clientModal').classList.add('open');
