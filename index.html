@@ -3497,7 +3497,7 @@ function showDetailView(id) {
 
 async function loadFollowUps(siteId) {
   try {
-    const res = await fetch(FUNCTIONS_BASE + '/activities?siteId=' + encodeURIComponent(siteId), { headers: authHeaders() });
+    const res = await fetch('/api/activities?siteId=' + encodeURIComponent(siteId), { headers: authHeaders() });
     const data = await res.json();
     const list = document.getElementById('followUpsList');
     if (!list) return;
@@ -3549,7 +3549,7 @@ async function saveFollowUp() {
   const btn = document.getElementById('saveFollowUpBtn');
   btn.disabled = true;
   try {
-    const res = await fetch(FUNCTIONS_BASE + '/activities', {
+    const res = await fetch('/api/activities', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ siteId: _followUpSiteId, type, whatHappened, nextAction, nextActionDate }),

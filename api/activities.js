@@ -1,7 +1,23 @@
 import { getSupabase } from '../lib/db.js';
-import { getSession } from '../lib/auth.js';
 
 export const config = { maxDuration: 30 };
+
+async function getSession(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!token) return null;
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('engineer_id, expires_at, engineers(id, full_name, role, is_active)')
+    .eq('token', token)
+    .single();
+  if (error || !data) return null;
+  if (new Date(data.expires_at) < new Date()) return null;
+  const eng = data.engineers;
+  if (!eng || !eng.is_active) return null;
+  return { engineerId: eng.id, fullName: eng.full_name, role: eng.role };
+}
 
 export default async function handler(req, res) {
   const session = await getSession(req);
