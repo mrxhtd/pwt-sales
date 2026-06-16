@@ -1956,7 +1956,7 @@
       </div>
       <div class="form-field field-full">
         <label>Location</label>
-        <input type="text" id="c_location">
+        <select id="c_location"></select>
       </div>
       <div class="form-field field-full">
         <label>Notes</label>
@@ -3756,7 +3756,7 @@ function openAddClientModal() {
   document.getElementById('c_name').value = '';
   document.getElementById('c_contact').value = '';
   document.getElementById('c_phone').value = '';
-  document.getElementById('c_location').value = '';
+  document.getElementById('c_location').innerHTML = locationOptionsHTML('');
   document.getElementById('c_notes').value = '';
   document.getElementById('deleteClientBtn').style.display = 'none';
   document.getElementById('clientModal').classList.add('open');
@@ -3770,7 +3770,7 @@ function openEditClient(id) {
   document.getElementById('c_name').value = c.name;
   document.getElementById('c_contact').value = c.contact;
   document.getElementById('c_phone').value = c.phone;
-  document.getElementById('c_location').value = c.location;
+  document.getElementById('c_location').innerHTML = locationOptionsHTML(c.location);
   document.getElementById('c_notes').value = c.notes;
   document.getElementById('deleteClientBtn').style.display = '';
   document.getElementById('clientModal').classList.add('open');
