@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PWT Sales — Code Review Findings</title>
+<style>
+  :root{
+    --bg:#0c0e0f; --panel:#15191b; --panel2:#1b2023; --border:#2a3135;
+    --text:#e6eaec; --muted:#9aa6ac; --accent:#f97316;
+    --crit:#ef4444; --high:#f97316; --med:#eab308; --low:#3b82f6; --good:#22c55e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;font-size:15px}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 20px 80px}
+  header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:28px}
+  h1{margin:0 0 6px;font-size:28px;letter-spacing:-.5px}
+  .sub{color:var(--muted);font-size:14px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;
+    padding:4px 12px;font-size:12px;color:var(--muted)}
+  h2{font-size:20px;margin:36px 0 4px;letter-spacing:-.3px}
+  h2 .em{margin-right:8px}
+  .lead{color:var(--muted);margin:0 0 18px;font-size:14px}
+  /* summary cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0 8px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+  .card .n{font-size:30px;font-weight:700;line-height:1}
+  .card .l{font-size:12px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+  .c-crit .n{color:var(--crit)} .c-high .n{color:var(--high)}
+  .c-med .n{color:var(--med)} .c-low .n{color:var(--low)} .c-good .n{color:var(--good)}
+  /* findings */
+  .finding{background:var(--panel);border:1px solid var(--border);border-left-width:4px;
+    border-radius:10px;padding:16px 18px;margin:12px 0}
+  .finding.crit{border-left-color:var(--crit)}
+  .finding.high{border-left-color:var(--high)}
+  .finding.med{border-left-color:var(--med)}
+  .finding.low{border-left-color:var(--low)}
+  .f-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    padding:3px 9px;border-radius:6px;color:#0c0e0f}
+  .b-crit{background:var(--crit)} .b-high{background:var(--high)}
+  .b-med{background:var(--med)} .b-low{background:var(--low)}
+  .f-id{font-weight:700;font-size:15px}
+  .f-title{font-weight:600}
+  .f-body{margin-top:9px;color:#d2d9dc;font-size:14px}
+  .f-body p{margin:6px 0}
+  .f-fix{margin-top:8px;font-size:13.5px;color:var(--good)}
+  .f-fix b{color:var(--good)}
+  code,.path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+    background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 7px;margin-left:auto}
+  /* converge table */
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  td .num{display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;
+    background:var(--accent);color:#0c0e0f;border-radius:50%;font-weight:700;font-size:12px}
+  /* good list */
+  .good li{margin:6px 0;color:#d2d9dc}
+  .good li::marker{color:var(--good)}
+  .assess{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:18px}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>PWT Sales — Comprehensive Code Review</h1>
+  <div class="sub">Findings from two parallel reviews: a backend/architecture pass and a frontend/full-stack pass.</div>
+  <div class="meta">
+    <span class="chip">Repo: mrxhtd/pwt-sales</span>
+    <span class="chip">Branch: claude/code-review-hrkpqs</span>
+    <span class="chip">Stack: Vercel serverless + Supabase + bcrypt + vanilla JS SPA</span>
+    <span class="chip">Date: 2026-06-20</span>
+  </div>
+</header>
+
+<!-- SUMMARY -->
+<section>
+  <h2>Summary at a glance</h2>
+  <div class="cards">
+    <div class="card c-crit"><div class="n">4</div><div class="l">Critical</div></div>
+    <div class="card c-high"><div class="n">5</div><div class="l">High</div></div>
+    <div class="card c-med"><div class="n">12</div><div class="l">Medium</div></div>
+    <div class="card c-low"><div class="n">12</div><div class="l">Low</div></div>
+    <div class="card c-good"><div class="n">6</div><div class="l">Done well</div></div>
+  </div>
+  <div class="assess">
+    <p style="margin:0 0 8px"><b>Net assessment.</b> The code is well-written at the line level — XSS escaping, ownership checks,
+    and loading/UX states are all solid. It is undermined by a <b>split-brain auth architecture</b>: the secure HttpOnly-cookie
+    design exists in the repo but isn't the one actually running, while the running model stores a long-lived session token in
+    <span class="path">localStorage</span> where any script can read it. Two one-line correctness bugs (<code>activities.js</code>,
+    <code>extract.js</code>) and an exposed runtime DDL endpoint round out the must-fix list.</p>
+    <p style="margin:0;color:var(--muted)">Both reviews independently flagged the <code>activities.js</code> issues and the auth
+    divergence — the strongest signal on where to start.</p>
+  </div>
+</section>
+
+<!-- CONVERGE -->
+<section>
+  <h2>Fix these first</h2>
+  <p class="lead">Highest-leverage items, ordered. The first four are correctness/security; the fifth unblocks production.</p>
+  <table>
+    <thead><tr><th style="width:36px">#</th><th>Issue</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td><span class="num">1</span></td>
+        <td><code>api/activities.js</code> — missing <code>crypto</code> import + leaked <code>err.message</code></td>
+        <td>Flagged by both reviews. Crashes activity logging on Node &lt;19; leaks internal errors. One-line fix.</td></tr>
+      <tr><td><span class="num">2</span></td>
+        <td>Unify the auth model</td>
+        <td>Biggest architectural problem: dead cookie-based <code>api/</code> code plus a Bearer token sitting in XSS-readable localStorage.</td></tr>
+      <tr><td><span class="num">3</span></td>
+        <td><code>api/extract.js</code> auth bypass (<code>await</code> missing)</td>
+        <td>Unauthenticated abuse of the billable Gemini API key.</td></tr>
+      <tr><td><span class="num">4</span></td>
+        <td><code>api/run-migration.js</code></td>
+        <td>Exposed runtime DDL endpoint using the wrong credential — remove it.</td></tr>
+      <tr><td><span class="num">5</span></td>
+        <td>CSP vs Leaflet</td>
+        <td>Map is broken in production; fixing it also enables self-hosting and removes a supply-chain vector.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CRITICAL -->
+<section>
+  <h2><span class="em">🔴</span>Critical</h2>
+
+  <div class="finding crit">
+    <div class="f-head"><span class="badge b-crit">Critical</span><span class="f-id">C1</span>
+      <span class="f-title">Auth bypass — <code>isAuthed</code> called without <code>await</code></span>
+      <span class="tag">api/extract.js:9</span></div>
+    <div class="f-body">
+      <p><code>isAuthed</code> is <code>async</code> and returns a Promise. <code>!isAuthed(req)</code> negates a Promise object
+      (always truthy), so the 401 branch never runs. The Gemini extraction endpoint is effectively open to unauthenticated abuse
+      against your billable <code>GEMINI_API_KEY</code>.</p>
+      <div class="f-fix"><b>Fix:</b> <code>if (!(await isAuthed(req)))</code> — or switch to the shared <code>getSession()</code> pattern.</div>
+    </div>
+  </div>
+
+  <div class="finding crit">
+    <div class="f-head"><span class="badge b-crit">Critical</span><span class="f-id">C2</span>
+      <span class="f-title"><code>crypto</code> used but never imported (ReferenceError)</span>
+      <span class="tag">api/activities.js:75</span></div>
+    <div class="f-body">
+      <p>Uses <code>crypto.randomUUID()</code> with no <code>import crypto from 'node:crypto'</code>. Every activity POST throws
+      and returns 500 on runtimes without a global <code>crypto</code> — all activity logging is broken, and the site
+      <code>next_action</code>/<code>due_date</code> update never happens.</p>
+      <div class="f-fix"><b>Fix:</b> add <code>import crypto from 'node:crypto';</code> at the top of the file.</div>
+    </div>
+  </div>
+
+  <div class="finding crit">
+    <div class="f-head"><span class="badge b-crit">Critical</span><span class="f-id">C3</span>
+      <span class="f-title">Two incompatible auth systems; session token in localStorage (XSS-exfiltratable)</span>
+      <span class="tag">index.html ↔ api/</span></div>
+    <div class="f-body">
+      <p>The client logs in, stores a Bearer token in <code>localStorage</code>, and sends it to a separate Supabase
+      <b>Edge Functions</b> deployment for all data. But the repo's <code>api/auth.js</code> returns <b>no token</b> and sets an
+      <b>HttpOnly cookie</b>. So <code>auth</code>, <code>clients</code>, <code>sites</code>, <code>products</code>,
+      <code>engineers</code>, <code>convert</code>, <code>extract</code> are unreachable from this frontend — effectively dead code —
+      and the live 30-day session token is readable by any injected script.</p>
+      <div class="f-fix"><b>Fix:</b> pick one model (prefer the existing HttpOnly-cookie design + <code>credentials:'include'</code>),
+      drop <code>getAuthToken/setAuthToken</code>, and delete the unused parallel implementation.</div>
+    </div>
+  </div>
+
+  <div class="finding crit">
+    <div class="f-head"><span class="badge b-crit">Critical</span><span class="f-id">C4</span>
+      <span class="f-title">Auth diverges even inside the <code>api/</code> folder</span>
+      <span class="tag">api/activities.js:5–20</span></div>
+    <div class="f-body">
+      <p><code>activities.js</code> defines its own <code>getSession()</code> reading <code>Authorization: Bearer</code>, while
+      every other endpoint imports the cookie-based helper from <code>lib/auth.js</code>. It's the only endpoint the frontend
+      reaches — by accident of this divergence, not design.</p>
+      <div class="f-fix"><b>Fix:</b> unify on the single shared <code>getSession()</code> in <code>lib/auth.js</code> after C3.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HIGH -->
+<section>
+  <h2><span class="em">🟠</span>High</h2>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">High</span><span class="f-id">H1</span>
+      <span class="f-title">Exposed runtime DDL endpoint using the wrong credential</span>
+      <span class="tag">api/run-migration.js</span></div>
+    <div class="f-body">
+      <p>A deployed endpoint runs <code>CREATE TABLE</code>/<code>CREATE INDEX</code> via the Supabase Management API, authenticating
+      with the <b>service-role key</b> (the Management API requires a Personal Access Token, so it can't work) and leaking upstream
+      error text. Migrations should not be a runtime HTTP endpoint.</p>
+      <div class="f-fix"><b>Fix:</b> remove the endpoint; run <code>migrations/*.sql</code> out-of-band.</div>
+    </div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">High</span><span class="f-id">H2</span>
+      <span class="f-title">Silent anon-key fallback weakens authorization</span>
+      <span class="tag">lib/db.js:8</span></div>
+    <div class="f-body">
+      <p><code>SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY</code>. With RLS allow-all policies, the whole model assumes service-role
+      + app-layer checks; a silent anon fallback hides misconfiguration and breaks expectations.</p>
+      <div class="f-fix"><b>Fix:</b> require the service-role key; throw if missing.</div>
+    </div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">High</span><span class="f-id">H3</span>
+      <span class="f-title">Rate limiting relies on per-instance in-memory state</span>
+      <span class="tag">api/auth.js:15–41</span></div>
+    <div class="f-body">
+      <p>The <code>loginAttempts</code> Map and <code>setInterval</code> cleanup live in module memory. Vercel is multi-instance and
+      cold-starts often, so the brute-force limiter is trivially bypassed and resets constantly. <code>x-forwarded-for</code> is also
+      spoofable in the rate-limit key.</p>
+      <div class="f-fix"><b>Fix:</b> move rate-limit state to a shared store (Supabase table / KV); use the platform client IP.</div>
+    </div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">High</span><span class="f-id">H4</span>
+      <span class="f-title">CSP blocks the map (Leaflet + tiles) in production</span>
+      <span class="tag">vercel.json:22 ↔ index.html:11–12</span></div>
+    <div class="f-body">
+      <p>Leaflet JS/CSS load from <code>unpkg.com</code> and tiles from <code>tile.openstreetmap.org</code>, none of which are in the
+      CSP. The browser blocks the <code>&lt;script&gt;</code> in <code>&lt;head&gt;</code> on every page load (masked only because the
+      Location tab is hidden).</p>
+      <div class="f-fix"><b>Fix:</b> self-host Leaflet (preferred) or extend CSP and add Subresource Integrity.</div>
+    </div>
+  </div>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">High</span><span class="f-id">H5</span>
+      <span class="f-title">Server leaks raw error/stack details to the client</span>
+      <span class="tag">api/activities.js:102–107</span></div>
+    <div class="f-body">
+      <p>Returns <code>{ error: err?.message }</code> — raw DB/driver messages reach the browser, unlike other endpoints which return
+      a generic <code>'Server error'</code>. Information disclosure.</p>
+      <div class="f-fix"><b>Fix:</b> return a generic message and <code>console.error</code> the detail server-side.</div>
+    </div>
+  </div>
+</section>
+
+<!-- MEDIUM -->
+<section>
+  <h2><span class="em">🟡</span>Medium</h2>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M1</span>
+    <span class="f-title">Client-supplied primary keys accepted with no validation</span><span class="tag">sites / clients / products / engineers</span></div>
+    <div class="f-body">POST handlers take <code>id</code> straight from the body — no shape/length checks. Allows intentional collisions and oversized keys.
+    <div class="f-fix"><b>Fix:</b> validate/normalize, or generate ids server-side.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M2</span>
+    <span class="f-title">No size limit / mimeType allowlist on extract payloads</span><span class="tag">api/extract.js</span></div>
+    <div class="f-body">Base64 image/audio forwarded to Gemini uncapped; mimeType used unvalidated. Compounds C1 as an abuse vector.
+    <div class="f-fix"><b>Fix:</b> add a size cap and a mimeType allowlist.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M3</span>
+    <span class="f-title">Inconsistent error disclosure across endpoints</span><span class="tag">activities.js / run-migration.js</span></div>
+    <div class="f-body">Most endpoints return generic errors; these two leak <code>err.message</code>/upstream text.
+    <div class="f-fix"><b>Fix:</b> standardize on generic client messages.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M4</span>
+    <span class="f-title">Conversion isn't transactional</span><span class="tag">api/convert.js:79</span></div>
+    <div class="f-body">Client insert and site delete are two separate calls — a failure between them orphans the conversion.
+    <div class="f-fix"><b>Fix:</b> use an RPC/transaction, or check the delete result and reconcile.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M5</span>
+    <span class="f-title">App-side aggregation instead of SQL</span><span class="tag">clients.js / sites.js</span></div>
+    <div class="f-body">Low-stock/product summaries pull every product row into the function and count in JS — won't scale.
+    <div class="f-fix"><b>Fix:</b> use a SQL view / RPC for counts.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M6</span>
+    <span class="f-title">Hardcoded Supabase project ref</span><span class="tag">vercel.json / push_notifications.sql</span></div>
+    <div class="f-body">Project URL hardcoded in CSP and the pg_cron <code>net.http_post</code> call — couples config to one project.
+    <div class="f-fix"><b>Fix:</b> template/inject for the migration; CSP literal is acceptable.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M7</span>
+    <span class="f-title">Manifest declares a non-square image as a 512×512 maskable icon</span><span class="tag">manifest.json:11–12</span></div>
+    <div class="f-body"><code>logoo.png</code> is actually 1258×832, declared twice as 512×512 <code>any</code>/<code>maskable</code>. Install prompts distort or reject it.
+    <div class="f-fix"><b>Fix:</b> generate real square 192/512 PNGs plus a padded maskable variant.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M8</span>
+    <span class="f-title">Service worker provides zero offline support</span><span class="tag">sw.js</span></div>
+    <div class="f-body">Only handles push — no <code>fetch</code> handler or precache. The "standalone" PWA is blank offline; bad for on-site engineers.
+    <div class="f-fix"><b>Fix:</b> add an app-shell cache (network-first) with a bumped <code>CACHE_VERSION</code>.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M9</span>
+    <span class="f-title">No cache-busting / versioning for the 210 KB inline app</span><span class="tag">vercel.json</span></div>
+    <div class="f-body"><code>/index.html</code> is <code>no-store</code> (full re-download every visit); other assets have no cache policy.
+    <div class="f-fix"><b>Fix:</b> use <code>no-cache</code> for HTML and long-lived immutable caching for hashed static assets.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M10</span>
+    <span class="f-title">302 KB duplicate logo shipped in the bundle</span><span class="tag">pwt logo.png / logoo.png</span></div>
+    <div class="f-body">Byte-identical files (same md5, 309,706 bytes). <code>pwt logo.png</code> is unreferenced; <code>logoo.png</code> is oversized for a 38px header.
+    <div class="f-fix"><b>Fix:</b> delete the duplicate; downscale/compress the logo.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M11</span>
+    <span class="f-title">Login form has no <code>&lt;label&gt;</code> elements</span><span class="tag">index.html:1677–1681</span></div>
+    <div class="f-body">Username/password rely on placeholders only — no label, <code>name</code>, or <code>for</code> association. Accessibility/autofill gap.
+    <div class="f-fix"><b>Fix:</b> add visually-hidden labels and <code>name</code> attributes.</div></div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Medium</span><span class="f-id">M12</span>
+    <span class="f-title">Upsert ownership edge cases</span><span class="tag">api/clients.js:107–120</span></div>
+    <div class="f-body">Updating someone else's existing client is correctly blocked, but arbitrary new client-supplied ids are accepted (ties into M1).
+    <div class="f-fix"><b>Fix:</b> validate ids and tighten upsert ownership handling.</div></div></div>
+</section>
+
+<!-- LOW -->
+<section>
+  <h2><span class="em">🔵</span>Low</h2>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L1</span>
+    <span class="f-title">Heavy CRUD duplication across endpoints</span><span class="tag">sites/clients/products.js</span></div>
+    <div class="f-body">Near-identical scaffolding repeated; extract shared <code>requireSession</code>/<code>requireOwnership</code>/body-parse helpers.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L2</span>
+    <span class="f-title">Same DDL duplicated in four places</span><span class="tag">site_activities</span></div>
+    <div class="f-body">Exists in <code>migrate.sql</code>, <code>migrations/</code>, <code>run-migration.js</code>, and <code>scripts/</code> — drift risk. Consolidate to one source of truth.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L3</span>
+    <span class="f-title">Hand-rolled cookie parsing</span><span class="tag">lib/auth.js:8–14</span></div>
+    <div class="f-body">Doesn't URL-decode and splits naively; works for UUIDs but fragile.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L4</span>
+    <span class="f-title">Unguarded JSON body parsing</span><span class="tag">multiple handlers</span></div>
+    <div class="f-body">A malformed string body throws a raw <code>SyntaxError</code> → 500. Wrap in a helper that returns 400.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L5</span>
+    <span class="f-title">Unused <code>dotenv</code> dependency</span><span class="tag">package.json</span></div>
+    <div class="f-body">Not imported at runtime (Vercel injects env). Move to devDependencies or remove.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L6</span>
+    <span class="f-title">Record IDs interpolated raw into inline <code>onclick</code></span><span class="tag">index.html:3084–3106</span></div>
+    <div class="f-body">Text is escaped, but ids drop raw into <code>onclick="fn('${id}')"</code>. Low risk for UUIDs; also forces <code>'unsafe-inline'</code>. Prefer <code>data-id</code> + delegated listeners.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L7</span>
+    <span class="f-title">Unreachable <code>#location</code> router branch</span><span class="tag">index.html:5244–5253</span></div>
+    <div class="f-body">Early <code>return</code> makes the admin guard and <code>loadLocationMap()</code> dead code.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L8</span>
+    <span class="f-title">Render-blocking Leaflet in <code>&lt;head&gt;</code></span><span class="tag">index.html:11–12</span></div>
+    <div class="f-body">Non-deferred script blocks first paint for a hidden feature. Lazy-load or add <code>defer</code> (folds into H4).</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L9</span>
+    <span class="f-title">Theme-color inconsistency</span><span class="tag">index.html:6 ↔ manifest.json</span></div>
+    <div class="f-body">Three different brand/background colors produce an inconsistent install title-bar tint.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L10</span>
+    <span class="f-title"><code>architecture.html</code> is out of date</span><span class="tag">architecture.html</span></div>
+    <div class="f-body">Documents the unused cookie path, not the live Bearer/localStorage + Edge Functions reality. Misleads maintainers.</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L11</span>
+    <span class="f-title">SW has no offline/caching strategy</span><span class="tag">sw.js</span></div>
+    <div class="f-body">Push-only handler despite PWA framing (related to M8).</div></div>
+
+  <div class="finding low"><div class="f-head"><span class="badge b-low">Low</span><span class="f-id">L12</span>
+    <span class="f-title">Spoofable <code>x-forwarded-for</code> in rate-limit key</span><span class="tag">api/auth.js:81</span></div>
+    <div class="f-body">Attacker can rotate the IP portion to evade limits (compounds H3).</div></div>
+</section>
+
+<!-- GOOD -->
+<section>
+  <h2><span class="em">✅</span>What's done well</h2>
+  <ul class="good">
+    <li>XSS escaping via <code>esc()</code> applied consistently across every <code>innerHTML</code> render path.</li>
+    <li>Consistent ownership/authorization checks (with admin override) on sites, clients, and products.</li>
+    <li>Correct auth cookie flags: <code>HttpOnly; Secure; SameSite=Lax; Path=/</code>, with enforced expiry and lazy session cleanup.</li>
+    <li>bcrypt cost 10; login responses don't distinguish "no such user" from "bad password".</li>
+    <li>Good loading UX: skeleton loaders and toasts used consistently; no secrets hardcoded in client code.</li>
+    <li>Strong CSP and security headers; <code>.vercelignore</code> correctly excludes SQL/scripts/docs from the static deploy; the past credential incident is thoroughly documented in <code>SECURITY.md</code>.</li>
+  </ul>
+</section>
+
+<footer>
+  Generated from two parallel code reviews (backend/architecture + frontend/full-stack). Review only — no code was changed.
+  Severity counts: 4 Critical · 5 High · 12 Medium · 12 Low.
+</footer>
+
+</div>
+</body>
+</html>
