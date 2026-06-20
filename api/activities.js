@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { getSupabase } from '../lib/db.js';
 
 export const config = { maxDuration: 30 };

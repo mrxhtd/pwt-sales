@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PWT Sales — Critical Fixes Report</title>
+<style>
+  :root{
+    --bg:#0c0e0f; --panel:#15191b; --panel2:#1b2023; --border:#2a3135;
+    --text:#e6eaec; --muted:#9aa6ac; --accent:#f97316;
+    --crit:#ef4444; --good:#22c55e; --warn:#eab308;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;font-size:15px}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px}
+  header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:28px}
+  h1{margin:0 0 6px;font-size:27px;letter-spacing:-.5px}
+  .sub{color:var(--muted);font-size:14px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted)}
+  h2{font-size:20px;margin:34px 0 4px;letter-spacing:-.3px}
+  h2 .em{margin-right:8px}
+  .lead{color:var(--muted);margin:0 0 14px;font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+  .card .n{font-size:30px;font-weight:700;line-height:1}
+  .card .l{font-size:12px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+  .c-good .n{color:var(--good)} .c-warn .n{color:var(--warn)} .c-crit .n{color:var(--crit)}
+  .finding{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:10px;padding:16px 18px;margin:12px 0}
+  .finding.done{border-left-color:var(--good)}
+  .finding.todo{border-left-color:var(--crit)}
+  .f-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:6px;color:#0c0e0f}
+  .b-done{background:var(--good)} .b-todo{background:var(--crit)}
+  .f-id{font-weight:700;font-size:15px}
+  .f-title{font-weight:600}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 7px;margin-left:auto}
+  .f-body{margin-top:9px;color:#d2d9dc;font-size:14px}
+  .f-body p{margin:6px 0}
+  .label{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:8px}
+  code,.path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+  pre{background:#0a0c0d;border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:12.5px;margin:8px 0}
+  pre code{background:none;border:none;padding:0}
+  .diff-rem{color:#f08a8a} .diff-add{color:#86e29a}
+  .note{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:14px;font-size:14px}
+  .note b{color:var(--warn)}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+  .ok{color:var(--good);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>PWT Sales — Critical Fixes Report</h1>
+  <div class="sub">Action taken on the Critical findings from the code review, and what remains.</div>
+  <div class="meta">
+    <span class="chip">Repo: mrxhtd/pwt-sales</span>
+    <span class="chip">Branch: claude/code-review-hrkpqs</span>
+    <span class="chip">Scope: Critical severity only</span>
+    <span class="chip">Date: 2026-06-20</span>
+  </div>
+</header>
+
+<section>
+  <h2>Outcome at a glance</h2>
+  <div class="cards">
+    <div class="card c-good"><div class="n">2</div><div class="l">Fixed</div></div>
+    <div class="card c-warn"><div class="n">2</div><div class="l">Deferred (needs decision)</div></div>
+    <div class="card c-crit"><div class="n">4</div><div class="l">Critical total</div></div>
+  </div>
+  <div class="note">
+    <p style="margin:0 0 6px"><b>Why only 2 of 4 were changed.</b> C1 and C2 are isolated, low-risk code bugs with a single correct fix —
+    safe to apply directly. C3 and C4 are <b>architectural</b>: the live frontend authenticates against a separate, off-repo
+    Supabase <b>Edge Functions</b> deployment using Bearer tokens, while the repo's <code>api/</code> folder uses HttpOnly cookies.
+    Rewiring that blindly would <b>break the running app</b> and requires your decision on which backend is canonical. They are
+    documented below as "still to fix" rather than changed without sign-off.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="em">✅</span>Fixed</h2>
+
+  <div class="finding done">
+    <div class="f-head"><span class="badge b-done">Fixed</span><span class="f-id">C1</span>
+      <span class="f-title">Auth bypass — <code>isAuthed</code> awaited</span>
+      <span class="tag">api/extract.js:9</span></div>
+    <div class="f-body">
+      <p><code>isAuthed</code> is <code>async</code>; it was called without <code>await</code>, so <code>!isAuthed(req)</code> negated a
+      Promise (always truthy) and the 401 never fired — leaving the billable Gemini endpoint open to unauthenticated abuse.</p>
+      <span class="label">Change</span>
+<pre><code><span class="diff-rem">- if (!isAuthed(req)) {</span>
+<span class="diff-add">+ if (!(await isAuthed(req))) {</span></code></pre>
+      <p class="ok">✓ Verified: <code>node --check api/extract.js</code> passes. The endpoint now rejects unauthenticated requests with 401.</p>
+    </div>
+  </div>
+
+  <div class="finding done">
+    <div class="f-head"><span class="badge b-done">Fixed</span><span class="f-id">C2</span>
+      <span class="f-title">Missing <code>crypto</code> import</span>
+      <span class="tag">api/activities.js</span></div>
+    <div class="f-body">
+      <p><code>activities.js</code> used <code>crypto.randomUUID()</code> (line 75) without importing <code>crypto</code>. On runtimes
+      without a global <code>crypto</code> this threw <code>ReferenceError</code>, returning 500 and breaking all activity logging plus
+      the automatic site <code>next_action</code>/<code>due_date</code> update.</p>
+      <span class="label">Change</span>
+<pre><code><span class="diff-add">+ import crypto from 'node:crypto';</span>
+  import { getSupabase } from '../lib/db.js';</code></pre>
+      <p class="ok">✓ Verified: <code>node --check api/activities.js</code> passes. Matches the existing import style in <code>lib/auth.js</code> and <code>api/engineers.js</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="em">⚠️</span>Still to fix (deferred — needs your decision)</h2>
+  <p class="lead">These two are entangled: they form one auth-architecture migration and should be done together, not piecemeal.</p>
+
+  <div class="finding todo">
+    <div class="f-head"><span class="badge b-todo">Deferred</span><span class="f-id">C3</span>
+      <span class="f-title">Two incompatible auth systems; session token in localStorage</span>
+      <span class="tag">index.html ↔ api/</span></div>
+    <div class="f-body">
+      <p>The frontend stores a Bearer token in <code>localStorage</code> and calls an off-repo Edge Functions backend, while the repo's
+      <code>api/</code> endpoints use HttpOnly cookies and return no token. The cookie endpoints are effectively dead code, and the live
+      token is readable by any injected script (30-day session).</p>
+      <span class="label">Why not auto-fixed</span>
+      <p>The fix is to pick one model and rewire every client <code>fetch</code> (and possibly migrate the Edge Functions). Doing this
+      without knowing which backend is authoritative would take down the working app. <b>Decision needed:</b> standardize on the
+      HttpOnly-cookie design in <code>lib/auth.js</code> (recommended), or keep Edge Functions but move the token into an HttpOnly cookie.</p>
+      <span class="label">Suggested plan once decided</span>
+      <ul>
+        <li>Make the chosen login endpoint set the HttpOnly cookie and stop returning a token in the body.</li>
+        <li>Switch all client calls to <code>credentials:'include'</code>; remove <code>getAuthToken/setAuthToken/authHeaders</code> and the <code>localStorage</code> token.</li>
+        <li>Delete the unused parallel implementation; update <code>architecture.html</code> to match.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="finding todo">
+    <div class="f-head"><span class="badge b-todo">Deferred</span><span class="f-id">C4</span>
+      <span class="f-title">Auth diverges inside the <code>api/</code> folder</span>
+      <span class="tag">api/activities.js:5–20</span></div>
+    <div class="f-body">
+      <p><code>activities.js</code> defines its own Bearer-based <code>getSession()</code>, while every other endpoint imports the
+      cookie-based helper from <code>lib/auth.js</code>. It's the one endpoint the frontend currently reaches.</p>
+      <span class="label">Why not auto-fixed</span>
+      <p>Switching it to the cookie helper now would break the <i>only</i> working client/server path until C3 lands. It must change
+      <b>as part of</b> the C3 migration — unify on the single <code>getSession()</code> in <code>lib/auth.js</code> at that point.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Out of scope for this pass</h2>
+  <p class="lead">Untouched by request — these were the non-Critical findings. Still open and tracked in the full review report
+  (<code>code-review-findings.html</code>).</p>
+  <ul>
+    <li><b>5 High:</b> exposed <code>run-migration.js</code> DDL endpoint, anon-key fallback in <code>lib/db.js</code>, in-memory rate limiting, CSP blocking Leaflet, leaked <code>err.message</code> in <code>activities.js</code>.</li>
+    <li><b>12 Medium</b> and <b>12 Low</b> — validation, PWA/offline, caching, duplicate logo, accessibility, code duplication, etc.</li>
+  </ul>
+</section>
+
+<footer>
+  Critical pass: 2 fixed (C1, C2 — both syntax-verified), 2 deferred pending an architecture decision (C3, C4). No other severities were changed in this pass.
+</footer>
+
+</div>
+</body>
+</html>
