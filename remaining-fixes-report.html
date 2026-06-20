@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PWT Sales — High/Medium/Low Fixes Report</title>
+<style>
+  :root{
+    --bg:#0c0e0f; --panel:#15191b; --panel2:#1b2023; --border:#2a3135;
+    --text:#e6eaec; --muted:#9aa6ac; --accent:#f97316;
+    --high:#f97316; --med:#eab308; --low:#3b82f6; --good:#22c55e; --warn:#eab308;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;font-size:15px}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 20px 80px}
+  header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:28px}
+  h1{margin:0 0 6px;font-size:27px;letter-spacing:-.5px}
+  .sub{color:var(--muted);font-size:14px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted)}
+  h2{font-size:20px;margin:36px 0 4px;letter-spacing:-.3px}
+  h2 .em{margin-right:8px}
+  .lead{color:var(--muted);margin:0 0 14px;font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+  .card .n{font-size:30px;font-weight:700;line-height:1}
+  .card .l{font-size:12px;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+  .c-good .n{color:var(--good)} .c-warn .n{color:var(--warn)} .c-high .n{color:var(--high)}
+  .finding{background:var(--panel);border:1px solid var(--border);border-left-width:4px;border-radius:10px;padding:15px 18px;margin:11px 0}
+  .finding.high{border-left-color:var(--high)}
+  .finding.med{border-left-color:var(--med)}
+  .finding.low{border-left-color:var(--low)}
+  .finding.todo{border-left-color:var(--warn)}
+  .f-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:6px;color:#0c0e0f}
+  .b-high{background:var(--high)} .b-med{background:var(--med)} .b-low{background:var(--low)} .b-todo{background:var(--warn)}
+  .f-id{font-weight:700;font-size:15px}
+  .f-title{font-weight:600}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 7px;margin-left:auto}
+  .f-body{margin-top:8px;color:#d2d9dc;font-size:14px}
+  .f-body p{margin:5px 0}
+  .ok{color:var(--good);font-weight:600}
+  code,.path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+  pre{background:#0a0c0d;border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:12.5px;margin:8px 0}
+  pre code{background:none;border:none;padding:0}
+  .note{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0;font-size:14px}
+  .note b{color:var(--warn)}
+  ul{margin:8px 0;padding-left:22px}
+  li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>PWT Sales — High / Medium / Low Fixes Report</h1>
+  <div class="sub">What was fixed in this pass (after the two Critical bugs), how, and what is intentionally deferred.</div>
+  <div class="meta">
+    <span class="chip">Repo: mrxhtd/pwt-sales</span>
+    <span class="chip">Branch: claude/code-review-hrkpqs</span>
+    <span class="chip">Date: 2026-06-20</span>
+  </div>
+</header>
+
+<section>
+  <h2>Outcome at a glance</h2>
+  <div class="cards">
+    <div class="card c-good"><div class="n">5/5</div><div class="l">High fixed</div></div>
+    <div class="card c-good"><div class="n">8/12</div><div class="l">Medium fixed</div></div>
+    <div class="card c-good"><div class="n">7/12</div><div class="l">Low fixed</div></div>
+    <div class="card c-warn"><div class="n">8</div><div class="l">Deferred</div></div>
+  </div>
+  <p class="lead">All changes were syntax-verified: <code>node --check</code> passes on every <code>api/*.js</code> and <code>lib/*.js</code>, and all JSON configs parse.</p>
+
+  <div class="note">
+    <p style="margin:0 0 6px"><b>Important context that shaped this pass.</b> The <i>live</i> frontend authenticates against a separate,
+    off-repo Supabase <b>Edge Functions</b> deployment (<code>FUNCTIONS_BASE</code>) and talks to it for almost everything — only
+    <code>/api/activities</code> hits this repo. There are <b>no repo equivalents</b> for the Edge Functions' <code>/subscribe</code>
+    (push) and <code>/location</code> endpoints. Because of that, the full C3 fix (moving the session token out of
+    <code>localStorage</code> into an HttpOnly cookie) cannot be applied safely without an architecture decision and would break the
+    running app — so it is <b>deferred</b> below. The C4 divergence, however, <i>was</i> resolved safely.</p>
+  </div>
+
+  <div class="note" style="border-color:var(--warn)">
+    <p style="margin:0"><b>Action required after deploy:</b> apply <code>migrations/login_attempts.sql</code> in Supabase so the new
+    rate limiter has its table. Until then the limiter <b>fails open</b> (logins still work; brute-force protection is simply inactive).</p>
+  </div>
+</section>
+
+<!-- AUTH UNIFICATION -->
+<section>
+  <h2><span class="em">🔑</span>Auth unification (C4 fixed, C3 partial)</h2>
+
+  <div class="finding high">
+    <div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">C4</span>
+      <span class="f-title">Single shared session helper</span><span class="tag">lib/auth.js · api/activities.js</span></div>
+    <div class="f-body">
+      <p><code>activities.js</code> had its own Bearer-only <code>getSession()</code> while every other endpoint used the cookie-based
+      one. I deleted the duplicate and pointed <code>activities.js</code> at the shared <code>lib/auth.js</code> helper. To avoid
+      breaking the current Bearer-token frontend, <code>getSession()</code> now resolves the token from <b>either</b> the HttpOnly
+      cookie (preferred) <b>or</b> an <code>Authorization: Bearer</code> header.</p>
+      <pre><code>// lib/auth.js — one helper, both transports
+function getTokenFromRequest(req){
+  const cookies = parseCookies(req.headers.cookie || '');
+  if (cookies[COOKIE_NAME]) return cookies[COOKIE_NAME];
+  const h = req.headers['authorization'] || '';
+  return h.startsWith('Bearer ') ? h.slice(7).trim() : null;
+}</code></pre>
+      <p class="ok">✓ Every endpoint now shares one auth path; no behavior change for the live frontend.</p>
+    </div>
+  </div>
+
+  <div class="finding todo">
+    <div class="f-head"><span class="badge b-todo">Deferred</span><span class="f-id">C3</span>
+      <span class="f-title">Token still in localStorage (groundwork laid)</span><span class="tag">index.html ↔ backend</span></div>
+    <div class="f-body">
+      <p>The shared helper now <i>accepts</i> cookies, so the server side is ready. Finishing C3 means the frontend must stop storing
+      the token in <code>localStorage</code> and rely on the HttpOnly cookie instead — but the live backend is a <b>cross-origin</b>
+      Edge Functions deployment with no repo <code>/subscribe</code> or <code>/location</code> equivalents. Rewiring that blindly would
+      break push, location, and possibly auth (cross-origin cookies).</p>
+      <p><b>Needs your decision:</b> which backend is canonical — the repo's same-origin <code>/api/*</code>, or the Edge Functions?
+      Once decided I can complete the migration (set cookie on login, switch all <code>fetch</code> to <code>credentials:'include'</code>,
+      remove <code>getAuthToken/setAuthToken</code>, port <code>/subscribe</code> + <code>/location</code> if moving to <code>/api</code>).</p>
+    </div>
+  </div>
+</section>
+
+<!-- HIGH -->
+<section>
+  <h2><span class="em">🟠</span>High — all 5 fixed</h2>
+
+  <div class="finding high"><div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">H1</span>
+    <span class="f-title">Removed exposed DDL endpoint</span><span class="tag">api/run-migration.js</span></div>
+    <div class="f-body">Deleted the file. It ran <code>CREATE TABLE</code> at runtime via the Management API using the wrong credential and leaked upstream errors. The table DDL still lives in <code>migrations/site_activities.sql</code> for out-of-band use.</div></div>
+
+  <div class="finding high"><div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">H2</span>
+    <span class="f-title">Require the service-role key</span><span class="tag">lib/db.js</span></div>
+    <div class="f-body">Dropped the silent <code>|| SUPABASE_ANON_KEY</code> fallback. With RLS allow-all policies the API must use the service-role key; falling back to anon would silently change authorization. It now throws if the key is missing.</div></div>
+
+  <div class="finding high"><div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">H3</span>
+    <span class="f-title">DB-backed login rate limiting</span><span class="tag">api/auth.js · migrations/login_attempts.sql</span></div>
+    <div class="f-body">Replaced the per-instance in-memory <code>Map</code> + <code>setInterval</code> (useless across serverless instances/cold starts) with a shared <code>login_attempts</code> table. All checks <b>fail open</b> so a limiter outage can never lock out real users. Also switched the rate-limit key to Vercel's <code>x-real-ip</code> first (L12), reducing header spoofing.</div></div>
+
+  <div class="finding high"><div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">H4</span>
+    <span class="f-title">CSP no longer blocks the map</span><span class="tag">vercel.json</span></div>
+    <div class="f-body">Added <code>https://unpkg.com</code> to <code>script-src</code>/<code>style-src</code>/<code>connect-src</code> and <code>https://*.tile.openstreetmap.org</code> to <code>img-src</code>, so Leaflet and its tiles load when the Location feature is re-enabled. (Self-hosting Leaflet remains the stronger long-term option — noted below.)</div></div>
+
+  <div class="finding high"><div class="f-head"><span class="badge b-high">Fixed</span><span class="f-id">H5</span>
+    <span class="f-title">No more raw error leakage</span><span class="tag">api/activities.js (+ all handlers)</span></div>
+    <div class="f-body"><code>activities.js</code> returned <code>err.message</code> to the client; it now logs server-side and returns a generic <code>'Server error'</code>, matching the other endpoints. The <code>setup_required</code> signal is kept but no longer echoes the raw driver text.</div></div>
+</section>
+
+<!-- MEDIUM -->
+<section>
+  <h2><span class="em">🟡</span>Medium — 8 fixed, 4 deferred</h2>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M1</span>
+    <span class="f-title">Validate client-supplied IDs</span><span class="tag">sites / clients / products / engineers / convert</span></div>
+    <div class="f-body">Added <code>isValidId()</code> (new <code>lib/http.js</code>): ids must match <code>^[A-Za-z0-9_-]{1,64}$</code>. Rejects oversized/odd keys with a 400 before any DB write.</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M2</span>
+    <span class="f-title">Cap & validate extract payloads</span><span class="tag">api/extract.js</span></div>
+    <div class="f-body">Added a ~6 MB size cap and a mimeType allowlist for image/audio before forwarding to Gemini (abuse/cost control). Also stopped echoing the upstream Gemini error (now a generic 502).</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M3</span>
+    <span class="f-title">Consistent error disclosure</span><span class="tag">all handlers</span></div>
+    <div class="f-body">Every handler now returns generic client messages and logs detail server-side; malformed-JSON bodies return a clean 400 instead of a 500.</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M4</span>
+    <span class="f-title">Conversion no longer orphans records</span><span class="tag">api/convert.js</span></div>
+    <div class="f-body">If the site delete fails after the client insert, the just-created client is removed (compensating action) and the request errors — no more "site + client for the same lead".</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M7</span>
+    <span class="f-title">Removed misleading maskable icon</span><span class="tag">manifest.json</span></div>
+    <div class="f-body">Dropped the <code>maskable</code> declaration that pointed at a non-square 1258×832 image (it would be cropped in the safe zone). <b>Partial:</b> proper square 192/512 + a padded maskable PNG still need to be generated (binary assets — see deferred).</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M8/M11</span>
+    <span class="f-title">Real offline app shell</span><span class="tag">sw.js</span></div>
+    <div class="f-body">Added a versioned cache (<code>CACHE_VERSION</code>), install-time precache of the app shell, old-cache cleanup on activate, and a <code>fetch</code> handler: network-first for navigations (offline fallback to cached <code>index.html</code>), cache-first for static assets. API calls and cross-origin requests are never cached.</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M9</span>
+    <span class="f-title">Sane caching policy</span><span class="tag">vercel.json</span></div>
+    <div class="f-body">HTML changed from <code>no-store</code> (full 210 KB re-download every visit) to <code>no-cache, must-revalidate</code> (allows 304s). Added <code>max-age=31536000, immutable</code> for static images/icons/fonts.</div></div>
+
+  <div class="finding med"><div class="f-head"><span class="badge b-med">Fixed</span><span class="f-id">M10</span>
+    <span class="f-title">Deleted duplicate logo</span><span class="tag">pwt logo.png</span></div>
+    <div class="f-body">Removed the unreferenced, byte-identical 302 KB copy of <code>logoo.png</code>.</div></div>
+
+  <div class="note">
+    <b>Deferred Medium</b> (need a DB change or binary assets I can't safely generate here):
+    <ul>
+      <li><b>M5</b> — App-side product aggregation in <code>clients.js</code>. Proper fix is a SQL view / RPC for counts; needs a DB migration and testing.</li>
+      <li><b>M6</b> — Hardcoded Supabase project ref in <code>migrations/push_notifications.sql</code>. Needs env-templated deploy; it's a migration artifact, low impact.</li>
+      <li><b>M7 (remainder)</b> — Generate true square 192×192 / 512×512 + padded maskable PNGs and reference them. Requires creating image binaries.</li>
+      <li><b>M12</b> — Effectively covered by M1 (id validation) + existing ownership checks; no further change needed.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- LOW -->
+<section>
+  <h2><span class="em">🔵</span>Low — 7 fixed, 4 deferred</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Fix</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td><b>L3</b></td><td>Cookie values now URL-decoded</td><td><code>lib/auth.js</code></td></tr>
+      <tr><td><b>L4</b></td><td>Safe JSON body parse → clean 400 (shared <code>readBody</code>)</td><td><code>lib/http.js</code> + all handlers</td></tr>
+      <tr><td><b>L5</b></td><td>Moved unused <code>dotenv</code> to devDependencies</td><td><code>package.json</code></td></tr>
+      <tr><td><b>L7</b></td><td>Removed unreachable <code>#location</code> code</td><td><code>index.html</code></td></tr>
+      <tr><td><b>L8</b></td><td>Leaflet script <code>defer</code>red (no longer blocks first paint)</td><td><code>index.html</code></td></tr>
+      <tr><td><b>L9</b></td><td>Aligned manifest theme/background to the dark UI</td><td><code>manifest.json</code></td></tr>
+      <tr><td><b>L12</b></td><td>Rate-limit key prefers real client IP</td><td><code>api/auth.js</code></td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>Deferred Low:</b>
+    <ul>
+      <li><b>L1</b> — Further CRUD de-duplication. Partially done (shared <code>lib/http.js</code> for body/id); a full <code>requireSession/requireOwnership</code> extraction is a larger refactor best done carefully.</li>
+      <li><b>L2</b> — Consolidate the <code>site_activities</code> DDL to one source. Reduced from 4 copies to 3 (removed <code>run-migration.js</code>); fully consolidating <code>migrate.sql</code> / <code>migrations/</code> / <code>scripts/</code> is a follow-up.</li>
+      <li><b>L6</b> — Inline <code>onclick="fn('${id}')"</code> uses raw IDs. Low risk today (server UUIDs) and a safe migration to <code>data-id</code> + delegated listeners is a sizeable frontend refactor — deferred to avoid regressions.</li>
+      <li><b>L10</b> — <code>architecture.html</code> update depends on the C3 backend decision; will update once that's settled.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Files changed</h2>
+  <ul>
+    <li><b>New:</b> <code>lib/http.js</code>, <code>migrations/login_attempts.sql</code></li>
+    <li><b>Deleted:</b> <code>api/run-migration.js</code>, <code>pwt logo.png</code></li>
+    <li><b>Backend:</b> <code>lib/db.js</code>, <code>lib/auth.js</code>, <code>api/auth.js</code>, <code>api/activities.js</code>, <code>api/extract.js</code>, <code>api/sites.js</code>, <code>api/clients.js</code>, <code>api/products.js</code>, <code>api/engineers.js</code>, <code>api/convert.js</code></li>
+    <li><b>Frontend / config:</b> <code>index.html</code>, <code>sw.js</code>, <code>manifest.json</code>, <code>vercel.json</code>, <code>package.json</code></li>
+  </ul>
+</section>
+
+<footer>
+  This pass: 5 High, 8 Medium, 7 Low fixed + C4 resolved and C3 groundwork. 8 items deferred (DB views, binary assets, or the C3 architecture decision). All JS/JSON verified. Apply <code>migrations/login_attempts.sql</code> after deploy.
+</footer>
+
+</div>
+</body>
+</html>

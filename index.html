@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
   // Set theme before first paint to avoid flash
   (function() {
@@ -5244,13 +5244,6 @@ function handleRoute() {
   if (hash === 'location') {
     // Location tab temporarily hidden (WIP) — block direct #location deep links.
     location.hash = ''; return;
-    if (currentEngineer?.role !== 'admin') { location.hash = ''; return; }
-    activeTab = 'location';
-    document.querySelectorAll('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'location'));
-    updateHeaderButtons('location');
-    showListView();
-    loadLocationMap();
-    return;
   }
 
   // Default: leads

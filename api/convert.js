@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getSupabase } from '../lib/db.js';
 import { getSession } from '../lib/auth.js';
+import { readBody, isValidId } from '../lib/http.js';
 
 export const config = { maxDuration: 30 };
 
@@ -17,9 +18,10 @@ export default async function handler(req, res) {
 
   try {
     const supabase = getSupabase();
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = readBody(req);
     const siteId = body?.siteId;
     if (!siteId) return res.status(400).json({ error: 'Missing siteId' });
+    if (!isValidId(siteId)) return res.status(400).json({ error: 'Invalid siteId' });
 
     // Get the site
     const { data: site, error: sErr } = await supabase
@@ -75,8 +77,14 @@ export default async function handler(req, res) {
 
     if (cErr) throw cErr;
 
-    // Remove the lead from sites — it's now a client
-    await supabase.from('sites').delete().eq('id', siteId);
+    // Remove the lead from sites — it's now a client. There's no multi-statement
+    // transaction here, so if the delete fails we compensate by removing the
+    // just-created client to avoid a duplicate (site + client for the same lead).
+    const { error: delErr } = await supabase.from('sites').delete().eq('id', siteId);
+    if (delErr) {
+      await supabase.from('clients').delete().eq('id', clientId);
+      throw delErr;
+    }
 
     return res.status(200).json({
       ok: true,
@@ -96,6 +104,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
+    if (err?.statusCode === 400) return res.status(400).json({ error: 'Invalid request' });
     console.error('convert api error:', err);
     return res.status(500).json({ error: 'Server error' });
   }

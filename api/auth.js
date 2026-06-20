@@ -8,37 +8,50 @@ import {
   setAuthCookie,
   clearAuthCookie,
 } from '../lib/auth.js';
+import { readBody } from '../lib/http.js';
 
 export const config = { maxDuration: 30 };
 
-// ─── RATE LIMITING ────────────────────────────────────
-const loginAttempts = new Map(); // key → { count, resetAt }
+// ─── RATE LIMITING (DB-backed, shared across serverless instances) ──────────
+// In-memory state doesn't work on serverless: each instance has its own Map and
+// cold starts reset it, so attackers bypass the limit by spreading attempts.
+// State lives in the `login_attempts` table (see migrations/login_attempts.sql).
+// All checks fail open — a limiter outage must never lock out legitimate logins.
 const MAX_ATTEMPTS = 7;
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-function isRateLimited(key) {
-  const now = Date.now();
-  const entry = loginAttempts.get(key);
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+async function isRateLimited(supabase, key) {
+  try {
+    const now = Date.now();
+    const { data: entry } = await supabase
+      .from('login_attempts')
+      .select('count, reset_at')
+      .eq('key', key)
+      .single();
+
+    if (!entry || now > new Date(entry.reset_at).getTime()) {
+      await supabase
+        .from('login_attempts')
+        .upsert({ key, count: 1, reset_at: new Date(now + WINDOW_MS).toISOString() }, { onConflict: 'key' });
+      return false;
+    }
+
+    const count = (entry.count || 0) + 1;
+    await supabase.from('login_attempts').update({ count }).eq('key', key);
+    return count > MAX_ATTEMPTS;
+  } catch (err) {
+    console.error('rate limit check failed (failing open):', err);
     return false;
   }
-  entry.count++;
-  if (entry.count > MAX_ATTEMPTS) return true;
-  return false;
 }
 
-function clearRateLimit(key) {
-  loginAttempts.delete(key);
-}
-
-// Cleanup stale entries every 30 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of loginAttempts) {
-    if (now > v.resetAt) loginAttempts.delete(k);
+async function clearRateLimit(supabase, key) {
+  try {
+    await supabase.from('login_attempts').delete().eq('key', key);
+  } catch (_) {
+    /* best effort */
   }
-}, 30 * 60 * 1000);
+}
 
 export default async function handler(req, res) {
   try {
@@ -69,7 +82,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = readBody(req);
     const username = (body?.username || '').trim().toLowerCase();
     const password = body?.password || '';
 
@@ -77,14 +90,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    // Rate limit by IP + username
-    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+    const supabase = getSupabase();
+
+    // Rate limit by IP + username. Prefer Vercel's real-client-IP header; fall
+    // back to the left-most x-forwarded-for hop.
+    const ip =
+      req.headers['x-real-ip'] ||
+      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+      'unknown';
     const rateKey = ip + ':' + username;
-    if (isRateLimited(rateKey)) {
+    if (await isRateLimited(supabase, rateKey)) {
       return res.status(429).json({ error: 'Too many login attempts. Try again in 15 minutes.' });
     }
-
-    const supabase = getSupabase();
     const { data: engineer, error } = await supabase
       .from('engineers')
       .select('id, username, password, full_name, role, is_active')
@@ -105,7 +122,7 @@ export default async function handler(req, res) {
     }
 
     // Successful login — clear rate limit
-    clearRateLimit(rateKey);
+    await clearRateLimit(supabase, rateKey);
 
     // Create session
     const token = await createSession(engineer.id);
@@ -120,6 +137,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
+    if (err?.statusCode === 400) return res.status(400).json({ error: 'Invalid request' });
     console.error('auth api error:', err);
     return res.status(500).json({ error: 'Server error' });
   }

@@ -1,24 +1,9 @@
 import crypto from 'node:crypto';
 import { getSupabase } from '../lib/db.js';
+import { getSession } from '../lib/auth.js';
+import { readBody } from '../lib/http.js';
 
 export const config = { maxDuration: 30 };
-
-async function getSession(req) {
-  const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return null;
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('engineer_id, expires_at, engineers(id, full_name, role, is_active)')
-    .eq('token', token)
-    .single();
-  if (error || !data) return null;
-  if (new Date(data.expires_at) < new Date()) return null;
-  const eng = data.engineers;
-  if (!eng || !eng.is_active) return null;
-  return { engineerId: eng.id, fullName: eng.full_name, role: eng.role };
-}
 
 export default async function handler(req, res) {
   const session = await getSession(req);
@@ -62,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const body = readBody(req);
       const { siteId, type, whatHappened, nextAction, nextActionDate } = body || {};
 
       if (!siteId) return res.status(400).json({ error: 'Missing siteId' });
@@ -99,12 +84,14 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
+    if (err?.statusCode === 400) return res.status(400).json({ error: 'Invalid request' });
     console.error('activities api error:', err);
     const msg = err?.message || String(err);
-    // Table not set up yet
+    // Table not set up yet — keep this signal so the client can prompt setup,
+    // but don't echo the raw driver message.
     if (msg.includes('relation') && msg.includes('does not exist')) {
-      return res.status(503).json({ error: 'setup_required', detail: msg });
+      return res.status(503).json({ error: 'setup_required' });
     }
-    return res.status(500).json({ error: msg });
+    return res.status(500).json({ error: 'Server error' });
   }
 }

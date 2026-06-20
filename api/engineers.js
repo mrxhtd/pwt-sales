@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { getSupabase } from '../lib/db.js';
 import { getSession } from '../lib/auth.js';
+import { readBody, isValidId } from '../lib/http.js';
 
 export const config = { maxDuration: 30 };
 
@@ -36,9 +37,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const body = readBody(req);
       const e = body?.engineer;
       if (!e?.username) return res.status(400).json({ error: 'Missing username' });
+      if (e.id && !isValidId(e.id)) return res.status(400).json({ error: 'Invalid engineer.id' });
 
       const id = e.id || 'eng_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 
@@ -94,6 +96,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
+    if (err?.statusCode === 400) return res.status(400).json({ error: 'Invalid request' });
     console.error('engineers api error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
