@@ -14,6 +14,11 @@ supabase/
 scripts/
 SECURITY.md
 
+# Internal code-review reports — keep in the repo but never serve publicly
+code-review-findings.html
+critical-fixes-report.html
+remaining-fixes-report.html
+
 # Local env / git
 .env*
 .git
