@@ -1,4 +1,4 @@
--- Drops sites.last_followup_at and clients.last_followup_at.
+-- Drops leads.last_followup_at and clients.last_followup_at.
 --
 -- Background: a "log visit" feature added these columns and shipped code that
 -- stamped them. The code was later scrapped and is no longer present anywhere
@@ -11,7 +11,7 @@
 -- is worth exporting first. DROP COLUMN is irreversible.
 --
 --   SELECT
---     (SELECT count(*) FROM sites   WHERE last_followup_at IS NOT NULL) AS sites_with_data,
+--     (SELECT count(*) FROM leads   WHERE last_followup_at IS NOT NULL) AS leads_with_data,
 --     (SELECT count(*) FROM clients WHERE last_followup_at IS NOT NULL) AS clients_with_data;
 --
 -- ── THEN THIS ────────────────────────────────────────────────────────────────
@@ -19,5 +19,5 @@
 DROP INDEX IF EXISTS idx_sites_last_followup;
 DROP INDEX IF EXISTS idx_clients_last_followup;
 
-ALTER TABLE sites   DROP COLUMN IF EXISTS last_followup_at;
+ALTER TABLE leads   DROP COLUMN IF EXISTS last_followup_at;
 ALTER TABLE clients DROP COLUMN IF EXISTS last_followup_at;

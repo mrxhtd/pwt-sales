@@ -29,33 +29,33 @@ Deno.serve(async (req: Request) => {
   try {
     const supabase = getSupabase();
     const body = await req.json();
-    const siteId = body?.siteId;
-    if (!siteId) return json({ error: 'Missing siteId' }, 400, cors);
+    const leadId = body?.leadId;
+    if (!leadId) return json({ error: 'Missing leadId' }, 400, cors);
 
-    // Get the site
-    const { data: site, error: sErr } = await supabase
-      .from('sites')
+    // Get the lead
+    const { data: lead, error: sErr } = await supabase
+      .from('leads')
       .select('*')
-      .eq('id', siteId)
+      .eq('id', leadId)
       .single();
 
-    if (sErr || !site) return json({ error: 'Site not found' }, 404, cors);
+    if (sErr || !lead) return json({ error: 'Lead not found' }, 404, cors);
 
     // Verify ownership
-    if (site.engineer_id !== engineerId && !isAdmin) {
-      return json({ error: 'Not your site' }, 403, cors);
+    if (lead.engineer_id !== engineerId && !isAdmin) {
+      return json({ error: 'Not your lead' }, 403, cors);
     }
 
     // Check status
-    if (site.status !== 'Closed Won') {
-      return json({ error: 'Site must be Closed Won to convert' }, 400, cors);
+    if (lead.status !== 'Closed Won') {
+      return json({ error: 'Lead must be Closed Won to convert' }, 400, cors);
     }
 
     // Check if already converted
     const { data: existing } = await supabase
       .from('clients')
       .select('id')
-      .eq('converted_from', siteId)
+      .eq('converted_from', leadId)
       .single();
 
     if (existing) {
@@ -70,15 +70,15 @@ Deno.serve(async (req: Request) => {
       .from('clients')
       .insert({
         id: clientId,
-        engineer_id: site.engineer_id,
-        name: site.name || '',
-        contact: site.contact || '',
-        phone: site.phone || '',
-        location: site.location || '',
-        equipment: site.equipment || '',
-        specs: site.specs || '',
-        notes: site.notes || '',
-        converted_from: siteId,
+        engineer_id: lead.engineer_id,
+        name: lead.name || '',
+        contact: lead.contact || '',
+        phone: lead.phone || '',
+        location: lead.location || '',
+        equipment: lead.equipment || '',
+        specs: lead.specs || '',
+        notes: lead.notes || '',
+        converted_from: leadId,
         converted_at: now,
         created_at: now,
         updated_at: now,
@@ -87,21 +87,21 @@ Deno.serve(async (req: Request) => {
     if (cErr) throw cErr;
 
     // Re-point the lead's follow-up history at the new client BEFORE deleting the
-    // site. site_activities.site_id is ON DELETE CASCADE, so skipping this would
+    // lead. activities.lead_id is ON DELETE CASCADE, so skipping this would
     // silently destroy every follow-up logged against the lead.
     const { error: aErr } = await supabase
-      .from('site_activities')
-      .update({ client_id: clientId, site_id: null })
-      .eq('site_id', siteId);
+      .from('activities')
+      .update({ client_id: clientId, lead_id: null })
+      .eq('lead_id', leadId);
     if (aErr) {
       console.error('Warning: could not move follow-ups to the new client:', aErr);
     }
 
-    // Remove the lead from sites — it's now a client
-    const { error: dErr } = await supabase.from('sites').delete().eq('id', siteId);
+    // Remove the lead from leads — it's now a client
+    const { error: dErr } = await supabase.from('leads').delete().eq('id', leadId);
     if (dErr) {
-      // Client was created but site delete failed — log but don't fail
-      console.error('Warning: site delete failed after conversion:', dErr);
+      // Client was created but lead delete failed — log but don't fail
+      console.error('Warning: lead delete failed after conversion:', dErr);
     }
 
     return json({
@@ -109,14 +109,14 @@ Deno.serve(async (req: Request) => {
       clientId,
       client: {
         id: clientId,
-        name: site.name || '',
-        contact: site.contact || '',
-        phone: site.phone || '',
-        location: site.location || '',
-        equipment: site.equipment || '',
-        specs: site.specs || '',
-        notes: site.notes || '',
-        convertedFrom: siteId,
+        name: lead.name || '',
+        contact: lead.contact || '',
+        phone: lead.phone || '',
+        location: lead.location || '',
+        equipment: lead.equipment || '',
+        specs: lead.specs || '',
+        notes: lead.notes || '',
+        convertedFrom: leadId,
         convertedAt: now,
         createdAt: now,
       },

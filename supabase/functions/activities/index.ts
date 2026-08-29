@@ -2,12 +2,12 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
 
-// A follow-up hangs off exactly one parent: a lead (sites) or a client (clients).
-function resolveParent(siteId: string | null, clientId: string | null) {
-  if (siteId && clientId) return { error: 'Provide siteId or clientId, not both' };
-  if (siteId) return { table: 'sites', column: 'site_id', id: siteId, isSite: true };
-  if (clientId) return { table: 'clients', column: 'client_id', id: clientId, isSite: false };
-  return { error: 'Missing siteId or clientId' };
+// A follow-up hangs off exactly one parent: a lead (leads) or a client (clients).
+function resolveParent(leadId: string | null, clientId: string | null) {
+  if (leadId && clientId) return { error: 'Provide leadId or clientId, not both' };
+  if (leadId) return { table: 'leads', column: 'lead_id', id: leadId, isLead: true };
+  if (clientId) return { table: 'clients', column: 'client_id', id: clientId, isLead: false };
+  return { error: 'Missing leadId or clientId' };
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
@@ -35,7 +35,7 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === 'GET') {
       const url = new URL(req.url);
-      const parent = resolveParent(url.searchParams.get('siteId'), url.searchParams.get('clientId'));
+      const parent = resolveParent(url.searchParams.get('leadId'), url.searchParams.get('clientId'));
       if (parent.error) return json({ error: parent.error }, 400, cors);
 
       if (!isAdmin) {
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
       }
 
       const { data, error } = await supabase
-        .from('site_activities')
+        .from('activities')
         .select('id, type, what_happened, next_action, next_action_date, created_at, engineer_id, engineers(full_name)')
         .eq(parent.column!, parent.id!)
         .order('created_at', { ascending: false });
@@ -66,20 +66,20 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === 'POST') {
       const body = await req.json();
-      const { siteId, clientId, type, whatHappened, nextAction, nextActionDate } = body || {};
+      const { leadId, clientId, type, whatHappened, nextAction, nextActionDate } = body || {};
 
-      const parent = resolveParent(siteId ?? null, clientId ?? null);
+      const parent = resolveParent(leadId ?? null, clientId ?? null);
       if (parent.error) return json({ error: parent.error }, 400, cors);
       if (!type || !['call', 'visit'].includes(type)) return json({ error: 'Invalid type' }, 400, cors);
 
       const { data: row } = await supabase
         .from(parent.table!).select('engineer_id').eq('id', parent.id!).single();
-      if (!row) return json({ error: parent.isSite ? 'Site not found' : 'Client not found' }, 404, cors);
+      if (!row) return json({ error: parent.isLead ? 'Lead not found' : 'Client not found' }, 404, cors);
       if (!isAdmin && row.engineer_id !== engineerId) return json({ error: 'Forbidden' }, 403, cors);
 
       const id = 'act_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
 
-      const { error: insertErr } = await supabase.from('site_activities').insert({
+      const { error: insertErr } = await supabase.from('activities').insert({
         id,
         [parent.column!]: parent.id,
         engineer_id: engineerId,
@@ -90,14 +90,14 @@ Deno.serve(async (req: Request) => {
       });
       if (insertErr) throw insertErr;
 
-      if (parent.isSite) {
+      if (parent.isLead) {
         // Mirror the follow-up's next step onto the lead itself.
         // Clients have no next_action/due_date columns, so this is leads-only.
-        const siteUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
-        if (nextAction !== undefined) siteUpdate.next_action = (nextAction || '').slice(0, 2000);
-        if (nextActionDate !== undefined) siteUpdate.due_date = nextActionDate || null;
+        const leadUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (nextAction !== undefined) leadUpdate.next_action = (nextAction || '').slice(0, 2000);
+        if (nextActionDate !== undefined) leadUpdate.due_date = nextActionDate || null;
 
-        const { error: updateErr } = await supabase.from('sites').update(siteUpdate).eq('id', siteId);
+        const { error: updateErr } = await supabase.from('leads').update(leadUpdate).eq('id', leadId);
         if (updateErr) throw updateErr;
       } else {
         const { error: updateErr } = await supabase

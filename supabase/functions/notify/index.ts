@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
 
     // Find leads with due dates in the next 12 hours that haven't been notified
     const { data: leads, error: lErr } = await supabase
-      .from('sites')
+      .from('leads')
       .select('id, name, due_date, next_action, engineer_id, status')
       .gte('due_date', todayStr)
       .lte('due_date', tomorrowStr)
@@ -73,11 +73,11 @@ Deno.serve(async (req: Request) => {
     const leadIds = leads.map((l: any) => l.id);
     const { data: alreadyNotified } = await supabase
       .from('notification_log')
-      .select('site_id')
-      .in('site_id', leadIds)
+      .select('lead_id')
+      .in('lead_id', leadIds)
       .gte('sent_at', todayStr + 'T00:00:00Z');
 
-    const notifiedSet = new Set((alreadyNotified || []).map((n: any) => n.site_id));
+    const notifiedSet = new Set((alreadyNotified || []).map((n: any) => n.lead_id));
     const toNotify = leads.filter((l: any) => !notifiedSet.has(l.id));
 
     if (toNotify.length === 0) {
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
 
         // Log notification
         await supabase.from('notification_log').insert({
-          site_id: lead.id,
+          lead_id: lead.id,
           engineer_id: engId,
           sent_at: now.toISOString(),
         });

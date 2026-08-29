@@ -2802,10 +2802,10 @@ const STATUS_SHORT = {
 };
 
 async function saveSite(site) {
-  const res = await fetch(FUNCTIONS_BASE + '/sites', {
+  const res = await fetch(FUNCTIONS_BASE + '/leads', {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ site })
+    body: JSON.stringify({ lead: site })
   });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('save failed');
@@ -2814,17 +2814,17 @@ async function saveSite(site) {
 }
 
 async function deleteSite(id) {
-  const res = await fetch(FUNCTIONS_BASE + '/sites?id=' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() });
+  const res = await fetch(FUNCTIONS_BASE + '/leads?id=' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('delete failed');
 }
 
 async function fetchSites() {
-  const res = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
+  const res = await fetch(FUNCTIONS_BASE + '/leads', { headers: authHeaders() });
   if (res.status === 401) { showLogin(); throw new Error('unauthorized'); }
   if (!res.ok) throw new Error('fetch failed');
   const data = await res.json();
-  return data.sites || [];
+  return data.leads || [];
 }
 
 // ─── AUTH / INIT ───────────────────────────────────────
@@ -2897,10 +2897,10 @@ async function doLogin() {
 
 async function loadDataAfterLogin() {
   try {
-    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
+    const sitesRes = await fetch(FUNCTIONS_BASE + '/leads', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
-    sites = sitesData.sites || [];
+    sites = sitesData.leads || [];
     await maybeMigrateLocal();
     renderStats();
     renderPills();
@@ -2934,10 +2934,10 @@ async function loadData() {
     showLeadSkeletons();
 
     // Fetch sites
-    const sitesRes = await fetch(FUNCTIONS_BASE + '/sites', { headers: authHeaders() });
+    const sitesRes = await fetch(FUNCTIONS_BASE + '/leads', { headers: authHeaders() });
     if (sitesRes.status === 401) { showLogin(); return; }
     const sitesData = await sitesRes.json();
-    sites = sitesData.sites || [];
+    sites = sitesData.leads || [];
 
     await maybeMigrateLocal();
     renderStats();
@@ -3826,7 +3826,7 @@ function showDetailView(id) {
 
 async function loadFollowUps(id, kind = 'lead') {
   try {
-    const param = kind === 'client' ? 'clientId' : 'siteId';
+    const param = kind === 'client' ? 'clientId' : 'leadId';
     const res = await fetch(FUNCTIONS_BASE + '/activities?' + param + '=' + encodeURIComponent(id), { headers: authHeaders() });
     const data = await res.json();
     const list = document.getElementById('followUpsList');
@@ -3885,7 +3885,7 @@ async function saveFollowUp() {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
-        ...(_followUpKind === 'client' ? { clientId: _followUpSiteId } : { siteId: _followUpSiteId }),
+        ...(_followUpKind === 'client' ? { clientId: _followUpSiteId } : { leadId: _followUpSiteId }),
         type, whatHappened, nextAction, nextActionDate,
       }),
     });
@@ -4905,7 +4905,7 @@ async function convertToClient(siteId) {
     const res = await fetch(FUNCTIONS_BASE + '/convert', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ siteId }),
+      body: JSON.stringify({ leadId: siteId }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -5064,12 +5064,12 @@ async function showEngineerDetailView(id) {
   let engLeads = [], engClients = [], totalLowStock = 0;
   try {
     const [leadsRes, clientsRes] = await Promise.all([
-      fetch(FUNCTIONS_BASE + '/sites?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
+      fetch(FUNCTIONS_BASE + '/leads?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
       fetch(FUNCTIONS_BASE + '/clients?engineerId=' + encodeURIComponent(id), { headers: authHeaders() }),
     ]);
     if (leadsRes.ok) {
       const ld = await leadsRes.json();
-      engLeads = ld.sites || [];
+      engLeads = ld.leads || [];
     }
     if (clientsRes.ok) {
       const cd = await clientsRes.json();

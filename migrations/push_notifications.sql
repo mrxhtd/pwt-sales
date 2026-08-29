@@ -15,12 +15,12 @@ CREATE INDEX IF NOT EXISTS idx_push_subs_engineer ON push_subscriptions (enginee
 -- Notification log to prevent duplicate notifications
 CREATE TABLE IF NOT EXISTS notification_log (
   id BIGSERIAL PRIMARY KEY,
-  site_id TEXT NOT NULL,
+  lead_id TEXT NOT NULL,
   engineer_id TEXT NOT NULL,
   sent_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_notif_log_site_sent ON notification_log (site_id, sent_at);
+CREATE INDEX IF NOT EXISTS idx_notif_log_lead_sent ON notification_log (lead_id, sent_at);
 
 -- Clean up old notification logs (older than 7 days) automatically
 -- Requires pg_cron extension to be enabled

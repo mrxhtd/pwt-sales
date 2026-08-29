@@ -7,7 +7,7 @@ function clamp(s: string, max = MAX_FIELD): string {
   return (s || '').slice(0, max);
 }
 
-function rowToSite(r: any) {
+function rowToLead(r: any) {
   return {
     id: r.id,
     name: r.name || '',
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === 'GET') {
       let query = supabase
-        .from('sites')
+        .from('leads')
         .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)')
         .order('updated_at', { ascending: false });
 
@@ -63,13 +63,13 @@ Deno.serve(async (req: Request) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return json({ sites: (data || []).map(rowToSite) }, 200, cors);
+      return json({ leads: (data || []).map(rowToLead) }, 200, cors);
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
-      const s = body?.site;
-      if (!s?.id) return json({ error: 'Missing site.id' }, 400, cors);
+      const s = body?.lead;
+      if (!s?.id) return json({ error: 'Missing lead.id' }, 400, cors);
 
       if (s.status && !VALID_STATUSES.includes(s.status)) {
         return json({ error: 'Invalid status' }, 400, cors);
@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
 
       // Check if record exists — separate insert vs update
       const { data: existing } = await supabase
-        .from('sites')
+        .from('leads')
         .select('engineer_id')
         .eq('id', s.id)
         .single();
@@ -85,10 +85,10 @@ Deno.serve(async (req: Request) => {
       if (existing) {
         // UPDATE — verify ownership
         if (existing.engineer_id !== engineerId && !isAdmin) {
-          return json({ error: 'Not your site' }, 403, cors);
+          return json({ error: 'Not your lead' }, 403, cors);
         }
         const { error } = await supabase
-          .from('sites')
+          .from('leads')
           .update({
             name: clamp(s.name),
             contact: clamp(s.contact),
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
         // INSERT — server generates ID to prevent IDOR
         const newId = crypto.randomUUID();
         const { error } = await supabase
-          .from('sites')
+          .from('leads')
           .insert({
             id: newId,
             name: clamp(s.name),
@@ -138,23 +138,23 @@ Deno.serve(async (req: Request) => {
 
       if (!isAdmin) {
         const { data: existing } = await supabase
-          .from('sites')
+          .from('leads')
           .select('engineer_id')
           .eq('id', id)
           .single();
         if (existing && existing.engineer_id !== engineerId) {
-          return json({ error: 'Not your site' }, 403, cors);
+          return json({ error: 'Not your lead' }, 403, cors);
         }
       }
 
-      const { error } = await supabase.from('sites').delete().eq('id', id);
+      const { error } = await supabase.from('leads').delete().eq('id', id);
       if (error) throw error;
       return json({ ok: true }, 200, cors);
     }
 
     return json({ error: 'Method not allowed' }, 405, cors);
   } catch (err) {
-    console.error('sites edge function error:', err);
+    console.error('leads edge function error:', err);
     return json({ error: 'Server error' }, 500, cors);
   }
 });

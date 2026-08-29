@@ -13,7 +13,7 @@ enabled = false
 # Pinned here so a deploy that forgets --no-verify-jwt cannot re-break it.
 [functions.auth]
 verify_jwt = false
-[functions.sites]
+[functions.leads]
 verify_jwt = false
 [functions.clients]
 verify_jwt = false

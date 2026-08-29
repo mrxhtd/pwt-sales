@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_engineer_id ON sessions (engineer_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
 
--- 3. Add engineer_id to sites (nullable first for migration)
-ALTER TABLE sites ADD COLUMN IF NOT EXISTS engineer_id TEXT REFERENCES engineers(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS idx_sites_engineer_id ON sites (engineer_id);
+-- 3. Add engineer_id to leads (nullable first for migration)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS engineer_id TEXT REFERENCES engineers(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_leads_engineer_id ON leads (engineer_id);
 
 -- 4. Clients table
 CREATE TABLE IF NOT EXISTS clients (
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS clients (
   equipment TEXT DEFAULT '',
   specs TEXT DEFAULT '',
   notes TEXT DEFAULT '',
-  converted_from TEXT REFERENCES sites(id) ON DELETE SET NULL,
+  converted_from TEXT REFERENCES leads(id) ON DELETE SET NULL,
   converted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -91,14 +91,14 @@ CREATE POLICY "allow_all_client_products" ON client_products FOR ALL USING (true
 --         SQL editor.
 --    See SECURITY.md for full details and credential-rotation steps.
 
--- 8. Assign all existing sites to the seeded admin
+-- 8. Assign all existing leads to the seeded admin
 --    Run this AFTER seeding the admin account (see seed-admin.example.sql).
--- UPDATE sites SET engineer_id = 'eng_admin_001' WHERE engineer_id IS NULL;
+-- UPDATE leads SET engineer_id = 'eng_admin_001' WHERE engineer_id IS NULL;
 
--- 9. Site activities table (follow-up log)
-CREATE TABLE IF NOT EXISTS site_activities (
+-- 9. Activities table (follow-up log for BOTH leads and clients)
+CREATE TABLE IF NOT EXISTS activities (
   id TEXT PRIMARY KEY,
-  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  lead_id TEXT NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
   engineer_id TEXT NOT NULL REFERENCES engineers(id),
   type TEXT NOT NULL CHECK (type IN ('call', 'visit')),
   what_happened TEXT NOT NULL DEFAULT '',
@@ -107,6 +107,11 @@ CREATE TABLE IF NOT EXISTS site_activities (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_site_activities_site ON site_activities(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activities_lead ON activities(lead_id, created_at DESC);
 
-CREATE POLICY "allow_all_site_activities" ON site_activities FOR ALL USING (true) WITH CHECK (true);
+-- RLS must be ENABLED, not just given a policy. A policy on a table with RLS
+-- switched off is inert: it was omitted here originally, which left the anon key
+-- able to read and write customer follow-up notes directly via PostgREST.
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all_activities" ON activities FOR ALL USING (true) WITH CHECK (true);
