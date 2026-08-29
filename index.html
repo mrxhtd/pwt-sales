@@ -2060,7 +2060,7 @@
       <button class="btn btn-danger" onclick="deleteClient()" id="deleteClientBtn" style="display:none">Delete</button>
       <div style="flex:1"></div>
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveClient()">Save</button>
+      <button class="btn btn-primary" id="saveClientBtn" onclick="saveClient()">Save</button>
     </div>
   </div>
 </div>
@@ -2119,7 +2119,7 @@
       <button class="btn btn-danger" onclick="deleteProduct()" id="deleteProductBtn" style="display:none">Delete</button>
       <div style="flex:1"></div>
       <button class="btn btn-ghost" onclick="closeModal('productModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+      <button class="btn btn-primary" id="saveProductBtn" onclick="saveProduct()">Save</button>
     </div>
   </div>
 </div>
@@ -2245,7 +2245,7 @@
     <div class="modal-footer">
       <div style="flex:1"></div>
       <button class="btn btn-ghost" onclick="closeModal('engineerModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEngineer()">Save</button>
+      <button class="btn btn-primary" id="saveEngineerBtn" onclick="saveEngineer()">Save</button>
     </div>
   </div>
 </div>
@@ -4072,6 +4072,7 @@ function renderClientTable() {
 
 function openAddClientModal() {
   editingClientId = null;
+  _newClientId = null;  // fresh id per add, so each new client is distinct
   document.getElementById('clientModalTitle').textContent = 'Add Client';
   document.getElementById('c_name').value = '';
   document.getElementById('c_contact').value = '';
@@ -4100,9 +4101,16 @@ function openEditClient(id) {
   document.getElementById('clientModal').classList.add('open');
 }
 
+// Reused across a retry so a double-click updates one record instead of
+// inserting two. Cleared when the modal opens.
+let _newClientId = null;
+
 async function saveClient() {
+  const btn = document.getElementById('saveClientBtn');
+  if (btn?.disabled) return;
+  if (!editingClientId && !_newClientId) _newClientId = crypto.randomUUID();
   const client = {
-    id: editingClientId || crypto.randomUUID(),
+    id: editingClientId || _newClientId,
     name: document.getElementById('c_name').value.trim(),
     contact: document.getElementById('c_contact').value.trim(),
     phone: document.getElementById('c_phone').value.trim(),
@@ -4112,6 +4120,7 @@ async function saveClient() {
     notes: document.getElementById('c_notes').value.trim(),
   };
   if (!client.name) { showToast('Client name is required', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
   try {
     const res = await fetch(FUNCTIONS_BASE + '/clients', {
       method: 'POST',
@@ -4120,6 +4129,7 @@ async function saveClient() {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     closeModal('clientModal');
+    _newClientId = null;
     showToast(editingClientId ? 'Client updated' : 'Client added', 'success');
     await loadClients();
     if (location.hash.startsWith('#customer/')) {
@@ -4128,6 +4138,8 @@ async function saveClient() {
     }
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   }
 }
 
@@ -4809,6 +4821,7 @@ function buildProductsSectionHTML() {
 // ─── PRODUCT CRUD ───────────────────────────────────────
 function openAddProductModal(clientId) {
   editingProductId = null;
+  _newProductId = null;
   viewingClientId = clientId;
   document.getElementById('productModalTitle').textContent = 'Add Product';
   document.getElementById('p_category').value = 'boilers';
@@ -4850,13 +4863,18 @@ function openEditProduct(id) {
   document.getElementById('productModal').classList.add('open');
 }
 
+let _newProductId = null;
+
 async function saveProduct() {
+  const btn = document.getElementById('saveProductBtn');
+  if (btn?.disabled) return;
+  if (!editingProductId && !_newProductId) _newProductId = crypto.randomUUID();
   const nameVal = document.getElementById('p_name').value;
   const productName = nameVal === '__other__'
     ? document.getElementById('p_name_custom').value.trim()
     : nameVal;
   const product = {
-    id: editingProductId || crypto.randomUUID(),
+    id: editingProductId || _newProductId,
     clientId: viewingClientId,
     category: document.getElementById('p_category').value,
     productName: productName,
@@ -4868,6 +4886,7 @@ async function saveProduct() {
     notes: document.getElementById('p_notes').value.trim(),
   };
   if (!product.productName) { showToast('Product name is required', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
   try {
     const res = await fetch(FUNCTIONS_BASE + '/products', {
       method: 'POST',
@@ -4876,11 +4895,14 @@ async function saveProduct() {
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
     closeModal('productModal');
+    _newProductId = null;
     showToast(editingProductId ? 'Product updated' : 'Product added', 'success');
     // Refresh detail view
     await showCustomerDetailView(viewingClientId);
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   }
 }
 
@@ -5012,6 +5034,8 @@ function openEditEngineer(id) {
 }
 
 async function saveEngineer() {
+  const btn = document.getElementById('saveEngineerBtn');
+  if (btn?.disabled) return;
   const engineer = {
     id: editingEngineerId || undefined,
     fullName: document.getElementById('eng_name').value.trim(),
@@ -5021,6 +5045,7 @@ async function saveEngineer() {
   };
   if (!engineer.username) { showToast('Username is required', 'error'); return; }
   if (!editingEngineerId && !engineer.password) { showToast('Password is required for new engineer', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
   try {
     const res = await fetch(FUNCTIONS_BASE + '/engineers', {
       method: 'POST',
@@ -5033,6 +5058,8 @@ async function saveEngineer() {
     await loadEngineers();
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
   }
 }
 
