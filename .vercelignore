@@ -22,3 +22,7 @@ remaining-fixes-report.html
 # Local env / git
 .env*
 .git
+
+# Vercel auto-publishes any /api folder as live serverless functions.
+# The backend is Supabase Edge Functions only — keep this door shut.
+api/

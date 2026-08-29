@@ -64,13 +64,24 @@ Deno.serve(async (req: Request) => {
       // Validate role
       const role = e.role === 'admin' ? 'admin' : 'engineer';
 
-      const id = e.id || 'eng_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+      // Check if this is an update (client sends existing ID) or a new record
+      const isUpdate = !!e.id;
+      let id: string;
+      let existing: any = null;
 
-      const { data: existing } = await supabase
-        .from('engineers')
-        .select('id')
-        .eq('id', id)
-        .single();
+      if (isUpdate) {
+        id = e.id;
+        const { data } = await supabase
+          .from('engineers')
+          .select('id')
+          .eq('id', id)
+          .single();
+        existing = data;
+        if (!existing) return json({ error: 'Engineer not found' }, 404, cors);
+      } else {
+        // Always generate ID server-side for new records
+        id = 'eng_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+      }
 
       // Check for duplicate username (on new records or username changes)
       const { data: dupeCheck } = await supabase
@@ -98,8 +109,8 @@ Deno.serve(async (req: Request) => {
       }
       if (e.password) {
         // Password validation
-        if (e.password.length < 6) {
-          return json({ error: 'Password must be at least 6 characters' }, 400, cors);
+        if (e.password.length < 12) {
+          return json({ error: 'Password must be at least 12 characters' }, 400, cors);
         }
         if (e.password.length > 200) {
           return json({ error: 'Password too long' }, 400, cors);

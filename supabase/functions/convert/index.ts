@@ -86,6 +86,17 @@ Deno.serve(async (req: Request) => {
 
     if (cErr) throw cErr;
 
+    // Re-point the lead's follow-up history at the new client BEFORE deleting the
+    // site. site_activities.site_id is ON DELETE CASCADE, so skipping this would
+    // silently destroy every follow-up logged against the lead.
+    const { error: aErr } = await supabase
+      .from('site_activities')
+      .update({ client_id: clientId, site_id: null })
+      .eq('site_id', siteId);
+    if (aErr) {
+      console.error('Warning: could not move follow-ups to the new client:', aErr);
+    }
+
     // Remove the lead from sites — it's now a client
     const { error: dErr } = await supabase.from('sites').delete().eq('id', siteId);
     if (dErr) {

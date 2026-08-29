@@ -1,9 +1,10 @@
+// Canonical allowlist. Keep this list identical across ALL functions: cors.ts is
+// bundled per-deployment, so deploying a subset with a different list silently
+// splits the CORS policy across endpoints (that is what broke login on the
+// sales-tracker-one-lyart domain). Deploy every function together after editing.
 const ALLOWED_ORIGINS = [
-  'https://sales-tracker-one-lyart.vercel.app',
   'https://pwt-sales.vercel.app',
-  'https://sales-tracker-*-mxhtdr-9726s-projects.vercel.app', // preview deployments
-  'http://localhost:3000',
-  'http://localhost:5173',
+  'https://sales-tracker-*-mxhtdr-9726s-projects.vercel.app',
 ];
 
 export function getCorsHeaders(req?: Request): Record<string, string> {

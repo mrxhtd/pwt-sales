@@ -3082,7 +3082,7 @@ function renderTable() {
       else if (d <= soon) dueCls = 'soon';
     }
     return `<tr onclick="viewClient('${s.id}')">
-      <td><div class="site-name">${esc(s.name || '—')}</div>${isAdm && s.engineerName ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(s.engineerName)}</div>` : ''}</td>
+      <td><div class="site-name">${esc(s.name || '—')}</div>${isAdm && s.engineerName ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(s.engineerName)}</div>` : ''}${s.createdAt ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-family:'DM Mono',monospace;">Added ${formatDate(s.createdAt)}</div>` : ''}</td>
       <td>
         <div class="contact-info">
           <div class="contact-name">${esc(s.contact || '—')}</div>
@@ -3742,10 +3742,6 @@ function showDetailView(id) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Convert to Client
         </button>` : ''}
-        <button class="btn btn-primary" onclick="openLeadQuote('${s.id}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
-          Generate Quote
-        </button>
         <button class="btn btn-ghost" onclick="openEdit('${s.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           Edit
@@ -3828,9 +3824,10 @@ function showDetailView(id) {
   loadFollowUps(s.id);
 }
 
-async function loadFollowUps(siteId) {
+async function loadFollowUps(id, kind = 'lead') {
   try {
-    const res = await fetch('/api/activities?siteId=' + encodeURIComponent(siteId), { headers: authHeaders() });
+    const param = kind === 'client' ? 'clientId' : 'siteId';
+    const res = await fetch(FUNCTIONS_BASE + '/activities?' + param + '=' + encodeURIComponent(id), { headers: authHeaders() });
     const data = await res.json();
     const list = document.getElementById('followUpsList');
     if (!list) return;
@@ -3862,8 +3859,10 @@ async function loadFollowUps(siteId) {
 }
 
 let _followUpSiteId = null;
-function openFollowUpModal(siteId) {
-  _followUpSiteId = siteId;
+let _followUpKind = 'lead';
+function openFollowUpModal(id, kind = 'lead') {
+  _followUpSiteId = id;
+  _followUpKind = kind;
   document.getElementById('fu_type').value = 'call';
   document.getElementById('fu_whatHappened').value = '';
   document.getElementById('fu_nextAction').value = '';
@@ -3882,28 +3881,36 @@ async function saveFollowUp() {
   const btn = document.getElementById('saveFollowUpBtn');
   btn.disabled = true;
   try {
-    const res = await fetch('/api/activities', {
+    const res = await fetch(FUNCTIONS_BASE + '/activities', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ siteId: _followUpSiteId, type, whatHappened, nextAction, nextActionDate }),
+      body: JSON.stringify({
+        ...(_followUpKind === 'client' ? { clientId: _followUpSiteId } : { siteId: _followUpSiteId }),
+        type, whatHappened, nextAction, nextActionDate,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
       if (data.error === 'setup_required') {
         showToast('Database table missing — run the migration SQL in Supabase (see console)', 'error', 6000);
-        console.error('Run this SQL in Supabase SQL Editor:\n\nCREATE TABLE IF NOT EXISTS site_activities (\n  id TEXT PRIMARY KEY,\n  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,\n  engineer_id TEXT NOT NULL REFERENCES engineers(id),\n  type TEXT NOT NULL CHECK (type IN (\'call\', \'visit\')),\n  what_happened TEXT NOT NULL DEFAULT \'\',\n  next_action TEXT NOT NULL DEFAULT \'\',\n  next_action_date DATE,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\nCREATE INDEX IF NOT EXISTS idx_site_activities_site ON site_activities(site_id, created_at DESC);');
+        console.error('Follow-up tables are not set up. Run these in the Supabase SQL Editor:\n  migrations/site_activities.sql\n  migrations/client_activities.sql');
       }
       throw new Error(data.error || data.detail || 'Failed to save');
     }
     closeModal('followUpModal');
     showToast('Follow up saved', 'success');
-    // Update local site data so pipeline section reflects new next action
-    const site = sites.find(x => x.id === _followUpSiteId);
-    if (site) {
-      if (nextAction) site.nextAction = nextAction;
-      if (nextActionDate) site.dueDate = nextActionDate;
+    if (_followUpKind === 'client') {
+      // Clients have no next_action/due_date columns — just re-render the timeline.
+      showCustomerDetailView(_followUpSiteId);
+    } else {
+      // Update local site data so pipeline section reflects new next action
+      const site = sites.find(x => x.id === _followUpSiteId);
+      if (site) {
+        if (nextAction) site.nextAction = nextAction;
+        if (nextActionDate) site.dueDate = nextActionDate;
+      }
+      showDetailView(_followUpSiteId);
     }
-    showDetailView(_followUpSiteId);
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -4048,7 +4055,7 @@ function renderClientTable() {
   const isAdm = currentEngineer?.role === 'admin';
   document.getElementById('clientTableBody').innerHTML = filtered.map(c => `
     <tr onclick="viewCustomer('${c.id}')" style="cursor:pointer">
-      <td><strong>${esc(c.name || 'Unnamed')}</strong>${isAdm && c.engineerName ? `<br><span style="font-size:11px;color:var(--text-muted)">${esc(c.engineerName)}</span>` : ''}</td>
+      <td><strong>${esc(c.name || 'Unnamed')}</strong>${isAdm && c.engineerName ? `<br><span style="font-size:11px;color:var(--text-muted)">${esc(c.engineerName)}</span>` : ''}${c.createdAt ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-family:'DM Mono',monospace;">Added ${formatDate(c.createdAt)}</div>` : ''}</td>
       <td>${esc(c.contact || '—')}</td>
       <td>${esc(c.phone || '—')}</td>
       <td>${esc(c.location || '—')}</td>
@@ -4173,6 +4180,7 @@ async function showCustomerDetailView(id) {
   document.getElementById('detailContent').innerHTML = buildCustomerDetailHTML(c);
   document.getElementById('detailPage').classList.add('active');
   window.scrollTo(0, 0);
+  loadFollowUps(id, 'client');
 }
 
 function buildCustomerDetailHTML(c) {
@@ -4188,10 +4196,6 @@ function buildCustomerDetailHTML(c) {
         </div>
       </div>
       <div class="detail-actions">
-        <button class="btn btn-primary" onclick="openQuoteModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
-          Generate Quote
-        </button>
         <button class="btn btn-ghost" onclick="openEditClient('${c.id}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           Edit
@@ -4247,6 +4251,17 @@ function buildCustomerDetailHTML(c) {
         ${buildProductFilterPillsHTML()}
       </div>
       <div id="productsContainer">${productsHTML}</div>
+    </div>
+
+    <div class="detail-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="detail-section-title" style="margin-bottom:0">Follow Ups</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="openFollowUpModal('${c.id}', 'client')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Follow Up
+        </button>
+      </div>
+      <div id="followUpsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
     </div>
   `;
 }

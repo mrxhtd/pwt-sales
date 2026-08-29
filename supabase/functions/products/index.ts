@@ -3,8 +3,12 @@ import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
 
 const MAX_FIELD = 2000;
-function clamp(s: string, max = MAX_FIELD): string {
-  return (s || '').slice(0, max);
+function clamp(s: unknown, max = MAX_FIELD): string {
+  return String(s ?? '').slice(0, max);
+}
+function validDate(d: unknown): string | null {
+  if (!d || typeof d !== 'string') return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
@@ -109,8 +113,8 @@ Deno.serve(async (req: Request) => {
             product_name: clamp(p.productName),
             model: clamp(p.model, 500),
             quantity: Math.min(Math.max(parseInt(p.quantity) || 1, 1), 99999),
-            install_date: p.installDate || null,
-            next_maintenance_date: p.nextMaintenanceDate || null,
+            install_date: validDate(p.installDate),
+            next_maintenance_date: validDate(p.nextMaintenanceDate),
             status: p.status || 'active',
             notes: clamp(p.notes, 5000),
             updated_at: new Date().toISOString(),
@@ -129,8 +133,8 @@ Deno.serve(async (req: Request) => {
             product_name: clamp(p.productName),
             model: clamp(p.model, 500),
             quantity: Math.min(Math.max(parseInt(p.quantity) || 1, 1), 99999),
-            install_date: p.installDate || null,
-            next_maintenance_date: p.nextMaintenanceDate || null,
+            install_date: validDate(p.installDate),
+            next_maintenance_date: validDate(p.nextMaintenanceDate),
             status: p.status || 'active',
             notes: clamp(p.notes, 5000),
             updated_at: new Date().toISOString(),

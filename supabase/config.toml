@@ -2,3 +2,34 @@ project_id = "hbiquvmldtoinqtmbvgd"
 
 [api]
 enabled = false
+
+# This app does NOT use Supabase Auth. Every function authenticates the caller
+# itself via getSession() in _shared/auth.ts, which reads an opaque 64-char hex
+# session token from the Authorization: Bearer header.
+#
+# That token is not a JWT, so the platform's JWT gate must stay off — otherwise
+# Supabase rejects the request with UNAUTHORIZED_INVALID_JWT_FORMAT before the
+# function code ever runs, and the app bounces the user back to the login page.
+# Pinned here so a deploy that forgets --no-verify-jwt cannot re-break it.
+[functions.auth]
+verify_jwt = false
+[functions.sites]
+verify_jwt = false
+[functions.clients]
+verify_jwt = false
+[functions.products]
+verify_jwt = false
+[functions.engineers]
+verify_jwt = false
+[functions.convert]
+verify_jwt = false
+[functions.extract]
+verify_jwt = false
+[functions.subscribe]
+verify_jwt = false
+[functions.notify]
+verify_jwt = false
+[functions.location]
+verify_jwt = false
+[functions.activities]
+verify_jwt = false
