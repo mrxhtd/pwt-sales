@@ -75,11 +75,18 @@ ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_products ENABLE ROW LEVEL SECURITY;
 
--- Allow all access (API layer enforces permissions)
-CREATE POLICY "allow_all_engineers" ON engineers FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_sessions" ON sessions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_clients" ON clients FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_client_products" ON client_products FOR ALL USING (true) WITH CHECK (true);
+-- Only the service role may touch these tables. The browser never talks to
+-- PostgREST directly — every request goes through an edge function that holds
+-- the service-role key — so nothing legitimate needs anon access.
+--
+-- These were originally `USING (true)`, which left the tables readable and
+-- writable by anyone holding the (publishable) anon key. Production was later
+-- hardened to service_role_only; this file now matches that state so a rebuild
+-- from scratch is secure by default.
+CREATE POLICY "service_role_only" ON engineers       FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_role_only" ON sessions        FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_role_only" ON clients         FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "service_role_only" ON client_products FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- 7. Create the initial admin account
 --    Do NOT hardcode credentials in this file — it is committed to git and may be
@@ -114,4 +121,4 @@ CREATE INDEX IF NOT EXISTS idx_activities_lead ON activities(lead_id, created_at
 -- able to read and write customer follow-up notes directly via PostgREST.
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "allow_all_activities" ON activities FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_only" ON activities FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
