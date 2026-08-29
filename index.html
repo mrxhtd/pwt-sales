@@ -1704,7 +1704,7 @@
     </button>
     <button class="btn btn-primary" id="addSiteBtn" onclick="openAddModal()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-      <span class="btn-label">Add Site</span><span class="btn-label-mobile" style="display:none">Add</span>
+      <span class="btn-label">Add Lead</span><span class="btn-label-mobile" style="display:none">Add</span>
     </button>
     <button class="btn btn-primary" id="addClientBtn" onclick="openAddClientModal()" style="display:none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -1739,7 +1739,7 @@
   <div class="controls">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" placeholder="Search sites, contacts..." id="searchInput" oninput="renderTable()">
+      <input type="text" placeholder="Search leads, contacts..." id="searchInput" oninput="renderTable()">
     </div>
     <div class="filter-pills" id="filterPills"></div>
     <div class="ml-auto">
@@ -1752,7 +1752,7 @@
     <table>
       <thead>
         <tr>
-          <th onclick="sortBy('name')">Site Name ↕</th>
+          <th onclick="sortBy('name')">Lead Name ↕</th>
           <th>Contact</th>
           <th>Equipment</th>
           <th>Location</th>
@@ -1836,7 +1836,7 @@
 <div class="detail-page" id="detailPage">
   <button class="detail-back" onclick="backToList()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-    <span id="backLabel">Back to all sites</span>
+    <span id="backLabel">Back to all leads</span>
   </button>
   <div id="detailContent"></div>
 </div>
@@ -1847,7 +1847,7 @@
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">Add New Site</div>
+      <div class="modal-title">Add New Lead</div>
       <button class="modal-close" onclick="closeModal('addModal')">✕</button>
     </div>
 
@@ -1919,12 +1919,12 @@
 <div class="modal-backdrop" id="editModal">
   <div class="modal" style="max-width:620px">
     <div class="modal-header">
-      <div class="modal-title">Edit Site</div>
+      <div class="modal-title">Edit Lead</div>
       <button class="modal-close" onclick="closeModal('editModal')">✕</button>
     </div>
     <div class="form-grid">
       <div class="form-field field-full">
-        <label>Site Name</label>
+        <label>Lead Name</label>
         <input type="text" id="e_name">
       </div>
       <div class="form-field">
@@ -2964,7 +2964,7 @@ async function maybeMigrateLocal() {
   let arr;
   try { arr = JSON.parse(raw); } catch { return; }
   if (!Array.isArray(arr) || !arr.length) return;
-  showToast(`Importing ${arr.length} local site${arr.length !== 1 ? 's' : ''}...`, 'success');
+  showToast(`Importing ${arr.length} local lead${arr.length !== 1 ? 's' : ''}...`, 'success');
   for (const s of arr) {
     if (!s.id) s.id = uid();
     try { await saveSite(s); } catch (err) { console.error('migration error', err); }
@@ -3062,8 +3062,8 @@ function renderTable() {
     tbody.innerHTML = `<tr><td colspan="9">
       <div class="empty-state">
         <div class="empty-icon">📋</div>
-        <div class="empty-title">No sites yet</div>
-        <div class="empty-sub">Click "Add Site" and describe your site naturally</div>
+        <div class="empty-title">No leads yet</div>
+        <div class="empty-sub">Click "Add Lead" and describe your lead naturally</div>
       </div>
     </td></tr>`;
     return;
@@ -3411,7 +3411,7 @@ async function confirmAdd() {
     renderStats();
     renderTable();
     closeModal('addModal');
-    showToast(`${entry.name || 'Site'} added`, 'success');
+    showToast(`${entry.name || 'Lead'} added`, 'success');
   } catch (err) {
     pendingEntry = entry;
     if (err.message !== 'unauthorized') showToast('Could not save', 'error');
@@ -3731,7 +3731,7 @@ function showDetailView(id) {
   document.getElementById('detailContent').innerHTML = `
     <div class="detail-header">
       <div>
-        <div class="detail-title">${esc(s.name || 'Untitled Site')}</div>
+        <div class="detail-title">${esc(s.name || 'Untitled Lead')}</div>
         <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <span class="badge ${badgeClass}" style="font-size:12px; padding:5px 14px;">${esc(badgeLabel)}</span>
           ${s.createdAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Recorded ${formatDateTime(s.createdAt)}</span>` : ''}
