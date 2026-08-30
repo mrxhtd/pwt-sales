@@ -2,1269 +2,811 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PWT Sales Tracker — Architecture</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-  :root {
-    --bg: #0a0e17;
-    --bg-card: #111827;
-    --bg-card-hover: #1a2332;
-    --bg-code: #0d1117;
-    --border: #1e293b;
-    --border-accent: #334155;
-    --text: #e2e8f0;
-    --text-dim: #94a3b8;
-    --text-muted: #64748b;
-    --accent: #3b82f6;
-    --accent-dim: #1e3a5f;
-    --green: #10b981;
-    --green-dim: #064e3b;
-    --red: #ef4444;
-    --red-dim: #7f1d1d;
-    --yellow: #f59e0b;
-    --yellow-dim: #78350f;
-    --purple: #a78bfa;
-    --purple-dim: #4c1d95;
-    --cyan: #22d3ee;
-    --cyan-dim: #164e63;
-    --orange: #fb923c;
-    --orange-dim: #7c2d12;
-    --pink: #f472b6;
-    --pink-dim: #831843;
-    --radius: 12px;
-    --radius-sm: 8px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'Inter', -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  /* ── HERO ── */
-  .hero {
-    text-align: center;
-    padding: 80px 24px 60px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 800px;
-    background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero-badge {
-    display: inline-block;
-    padding: 6px 16px;
-    background: var(--accent-dim);
-    color: var(--accent);
-    border-radius: 100px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-  }
-  .hero h1 {
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800;
-    letter-spacing: -1.5px;
-    background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 12px;
-  }
-  .hero h1 span {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .hero-sub {
-    font-size: 17px;
-    color: var(--text-dim);
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  /* ── NAV ── */
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(10,14,23,0.85);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    overflow-x: auto;
-  }
-  .nav-inner {
-    display: flex;
-    gap: 4px;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 8px 0;
-  }
-  .nav-btn {
-    padding: 8px 16px;
-    border: none;
-    background: transparent;
-    color: var(--text-dim);
-    font-size: 13px;
-    font-weight: 500;
-    border-radius: 8px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.15s;
-  }
-  .nav-btn:hover { background: var(--bg-card); color: var(--text); }
-  .nav-btn.active { background: var(--accent-dim); color: var(--accent); }
-
-  /* ── CONTAINER ── */
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-
-  /* ── SECTIONS ── */
-  .section {
-    padding: 60px 0;
-    display: none;
-  }
-  .section.active { display: block; }
-  .section-header {
-    margin-bottom: 40px;
-  }
-  .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--accent);
-    margin-bottom: 8px;
-  }
-  .section-title {
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    margin-bottom: 8px;
-  }
-  .section-desc {
-    font-size: 15px;
-    color: var(--text-dim);
-    max-width: 700px;
-  }
-
-  /* ── CARDS ── */
-  .grid { display: grid; gap: 16px; }
-  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
-  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-    transition: all 0.2s;
-  }
-  .card:hover {
-    border-color: var(--border-accent);
-    background: var(--bg-card-hover);
-  }
-  .card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    margin-bottom: 14px;
-  }
-  .card-title {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .card-desc {
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.5;
-  }
-
-  /* ── CODE ── */
-  code, .code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-  }
-  .code-block {
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 16px 20px;
-    overflow-x: auto;
-    margin: 12px 0;
-    line-height: 1.7;
-  }
-  .code-block .comment { color: #6a737d; }
-  .code-block .keyword { color: #ff7b72; }
-  .code-block .string { color: #a5d6ff; }
-  .code-block .fn { color: #d2a8ff; }
-  .code-block .type { color: #79c0ff; }
-  .code-block .dim { color: #484f58; }
-
-  /* ── TAGS ── */
-  .tag {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .tag-blue { background: var(--accent-dim); color: var(--accent); }
-  .tag-green { background: var(--green-dim); color: var(--green); }
-  .tag-red { background: var(--red-dim); color: var(--red); }
-  .tag-yellow { background: var(--yellow-dim); color: var(--yellow); }
-  .tag-purple { background: var(--purple-dim); color: var(--purple); }
-  .tag-cyan { background: var(--cyan-dim); color: var(--cyan); }
-  .tag-orange { background: var(--orange-dim); color: var(--orange); }
-
-  /* ── DIAGRAM SPECIFIC ── */
-  .arch-flow {
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    margin: 32px 0;
-    overflow-x: auto;
-    padding-bottom: 8px;
-  }
-  .arch-col {
-    flex: 1;
-    min-width: 200px;
-    position: relative;
-  }
-  .arch-col-header {
-    text-align: center;
-    padding: 12px 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .arch-col-body {
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-    padding: 16px;
-    min-height: 220px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .arch-arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    min-width: 48px;
-    color: var(--text-muted);
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-  .arch-item {
-    padding: 8px 12px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── TABLE ── */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-    font-size: 13px;
-  }
-  .data-table th {
-    text-align: left;
-    padding: 10px 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-dim);
-  }
-  .data-table td {
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    vertical-align: top;
-  }
-  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-  /* ── FLOW DIAGRAM ── */
-  .flow {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin: 24px 0;
-  }
-  .flow-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    position: relative;
-  }
-  .flow-line {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 32px;
-    flex-shrink: 0;
-  }
-  .flow-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 2px solid var(--bg);
-    box-shadow: 0 0 0 2px var(--accent);
-    z-index: 1;
-    flex-shrink: 0;
-    margin-top: 4px;
-  }
-  .flow-connector {
-    width: 2px;
-    flex: 1;
-    background: var(--border);
-    min-height: 24px;
-  }
-  .flow-content {
-    flex: 1;
-    padding-bottom: 24px;
-  }
-  .flow-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .flow-desc {
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-
-  /* ── DB SCHEMA ── */
-  .db-table {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 16px;
-  }
-  .db-table-name {
-    padding: 12px 16px;
-    font-weight: 700;
-    font-size: 14px;
-    font-family: 'JetBrains Mono', monospace;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .db-col {
-    padding: 6px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-  .db-col:last-child { border-bottom: none; }
-  .db-col-name { flex: 1; }
-  .db-col-type { color: var(--cyan); font-size: 11px; }
-  .db-pk { color: var(--yellow); font-size: 10px; font-weight: 700; }
-  .db-fk { color: var(--purple); font-size: 10px; font-weight: 700; }
-  .db-rel-line {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 8px 0;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── ROLE COMPARISON ── */
-  .role-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  .role-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-  }
-  .role-card h3 {
-    font-size: 16px;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .role-list {
-    list-style: none;
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-  .role-list li {
-    padding: 5px 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .role-list li::before {
-    content: '✓';
-    color: var(--green);
-    font-weight: 700;
-    font-size: 12px;
-  }
-  .role-list li.denied::before {
-    content: '✗';
-    color: var(--red);
-  }
-
-  /* ── SECURITY ── */
-  .shield-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 12px;
-  }
-  .shield-item {
-    display: flex;
-    gap: 12px;
-    padding: 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-  }
-  .shield-icon {
-    font-size: 20px;
-    flex-shrink: 0;
-    width: 32px;
-    text-align: center;
-  }
-  .shield-label {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 2px;
-  }
-  .shield-desc {
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  /* ── FILE TREE ── */
-  .file-tree {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    line-height: 2;
-    padding: 20px;
-    background: var(--bg-code);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
-  .file-tree .folder { color: var(--accent); }
-  .file-tree .file { color: var(--text-dim); }
-  .file-tree .desc { color: var(--text-muted); font-size: 11px; font-family: 'Inter', sans-serif; }
-  .file-tree .lines { color: var(--yellow); font-size: 10px; }
-  .file-tree .indent { display: inline-block; }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 768px) {
-    .hero { padding: 50px 20px 40px; }
-    .arch-flow { flex-direction: column; }
-    .arch-arrow { width: auto; height: 32px; transform: rotate(90deg); }
-    .role-grid { grid-template-columns: 1fr; }
-    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-    .section { padding: 40px 0; }
-  }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PWT Sales System Map</title>
 </head>
 <body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 
-<!-- ═══════════════════════ HERO ═══════════════════════ -->
-<div class="hero">
-  <div class="hero-badge">System Architecture</div>
-  <h1>PWT <span>Sales Tracker</span></h1>
-  <p class="hero-sub">A single-page application for PWT International's sales team to manage leads, clients, and water treatment product inventory.</p>
-</div>
+<style>
+  :root {
+    --paper:      #f3f6f5;
+    --surface:    #ffffff;
+    --surface-2:  #e8edec;
+    --ink:        #101a1d;
+    --ink-2:      #3c4d51;
+    --ink-3:      #6b7d81;
+    --rule:       #cbd6d5;
+    --rule-2:     #dde5e4;
+    --accent:     #0d7d8c;
+    --accent-bg:  #e0f0f1;
+    --warn:       #a86a1c;
+    --warn-bg:    #f7ecdb;
+    --danger:     #a33a32;
+    --danger-bg:  #f7e3e1;
+    --ok:         #2f6d44;
+    --ok-bg:      #dfeee5;
+    --measure:    68ch;
+  }
 
-<!-- ═══════════════════════ NAV ═══════════════════════ -->
-<div class="nav">
-  <div class="nav-inner">
-    <button class="nav-btn active" onclick="showSection('overview')">Overview</button>
-    <button class="nav-btn" onclick="showSection('stack')">Tech Stack</button>
-    <button class="nav-btn" onclick="showSection('auth')">Auth Flow</button>
-    <button class="nav-btn" onclick="showSection('data')">Data Model</button>
-    <button class="nav-btn" onclick="showSection('api')">API Layer</button>
-    <button class="nav-btn" onclick="showSection('frontend')">Frontend</button>
-    <button class="nav-btn" onclick="showSection('routing')">Routing</button>
-    <button class="nav-btn" onclick="showSection('roles')">Roles & Access</button>
-    <button class="nav-btn" onclick="showSection('security')">Security</button>
-    <button class="nav-btn" onclick="showSection('files')">File Map</button>
-  </div>
-</div>
-
-<div class="container">
-
-<!-- ═══════════════════════ 1. OVERVIEW ═══════════════════════ -->
-<div class="section active" id="sec-overview">
-  <div class="section-header">
-    <div class="section-label">01 — The Big Picture</div>
-    <div class="section-title">How Everything Connects</div>
-    <p class="section-desc">The app is a static SPA served by Vercel, backed by serverless API functions and a Supabase PostgreSQL database. Here's the request lifecycle:</p>
-  </div>
-
-  <div class="arch-flow">
-    <div class="arch-col">
-      <div class="arch-col-header" style="color:var(--cyan);">🌐 Browser</div>
-      <div class="arch-col-body">
-        <div class="arch-item">User opens <strong>index.html</strong></div>
-        <div class="arch-item">JS calls <code>fetch('/api/auth')</code></div>
-        <div class="arch-item">Cookie <code>pwt_auth</code> sent automatically</div>
-        <div class="arch-item">Renders UI from JSON responses</div>
-      </div>
-    </div>
-    <div class="arch-arrow">→</div>
-    <div class="arch-col">
-      <div class="arch-col-header" style="color:var(--accent);">⚡ Vercel Functions</div>
-      <div class="arch-col-body">
-        <div class="arch-item"><code>/api/auth.js</code> — login, logout, check</div>
-        <div class="arch-item"><code>/api/sites.js</code> — leads CRUD</div>
-        <div class="arch-item"><code>/api/clients.js</code> — clients CRUD</div>
-        <div class="arch-item"><code>/api/products.js</code> — inventory CRUD</div>
-        <div class="arch-item"><code>/api/engineers.js</code> — team mgmt</div>
-        <div class="arch-item"><code>/api/convert.js</code> — lead → client</div>
-        <div class="arch-item"><code>/api/extract.js</code> — AI extraction</div>
-      </div>
-    </div>
-    <div class="arch-arrow">→</div>
-    <div class="arch-col">
-      <div class="arch-col-header" style="color:var(--green);">🗄️ Supabase</div>
-      <div class="arch-col-body">
-        <div class="arch-item"><code>engineers</code> — user accounts</div>
-        <div class="arch-item"><code>sessions</code> — auth tokens</div>
-        <div class="arch-item"><code>sites</code> — sales leads</div>
-        <div class="arch-item"><code>clients</code> — converted clients</div>
-        <div class="arch-item"><code>client_products</code> — inventory</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" style="border-left: 3px solid var(--accent); margin-top: 24px;">
-    <div class="card-title">Key Insight</div>
-    <p class="card-desc">There is <strong>no client-side Supabase SDK</strong>. The browser never talks to the database directly. Every request goes through Vercel serverless functions, which authenticate the user, enforce ownership rules, and then query Supabase using the <strong>service role key</strong> (full access). This means all authorization logic lives server-side in the <code>/api/</code> layer.</p>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 2. TECH STACK ═══════════════════════ -->
-<div class="section" id="sec-stack">
-  <div class="section-header">
-    <div class="section-label">02 — Tech Stack</div>
-    <div class="section-title">What Powers the App</div>
-  </div>
-
-  <div class="grid grid-3">
-    <div class="card">
-      <div class="card-icon" style="background:var(--accent-dim); color:var(--accent);">📄</div>
-      <div class="card-title">Frontend</div>
-      <p class="card-desc">A single <code>index.html</code> file (3,800+ lines) containing all HTML, CSS, and vanilla JavaScript. No frameworks, no build step, no bundler. Served as a static file by Vercel's CDN.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--green-dim); color:var(--green);">⚡</div>
-      <div class="card-title">Backend</div>
-      <p class="card-desc">7 Vercel serverless functions in <code>/api/</code>, each a single ES module exporting a default <code>handler(req, res)</code>. Node.js runtime, no Express — just raw request/response handlers.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--purple-dim); color:var(--purple);">🗄️</div>
-      <div class="card-title">Database</div>
-      <p class="card-desc">Supabase PostgreSQL with 5 tables. Accessed via the <code>@supabase/supabase-js</code> client using the service role key. RLS is enabled but permissive — authorization is handled in API code.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--yellow-dim); color:var(--yellow);">🔐</div>
-      <div class="card-title">Auth</div>
-      <p class="card-desc">Custom session-based auth. Passwords hashed with <code>bcryptjs</code>. Sessions stored in the database as UUID tokens. Delivered via <code>HttpOnly</code> cookies with 30-day expiry.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--cyan-dim); color:var(--cyan);">🤖</div>
-      <div class="card-title">AI Integration</div>
-      <p class="card-desc">Gemini 2.5 Flash API for natural language extraction. Engineers describe a lead in text, voice, or photo — the AI parses it into structured form fields automatically.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--orange-dim); color:var(--orange);">🚀</div>
-      <div class="card-title">Deployment</div>
-      <p class="card-desc">Vercel with zero config. Static files served from CDN, API routes as serverless functions. Security headers set via <code>vercel.json</code>. Environment variables managed in Vercel dashboard.</p>
-    </div>
-  </div>
-
-  <h3 style="margin-top: 40px; margin-bottom: 16px; font-size: 16px;">Dependencies</h3>
-  <div class="code-block">
-    <span class="comment">// package.json — only 3 dependencies, no devDependencies</span><br>
-    <span class="string">"@supabase/supabase-js"</span>: <span class="string">"^2.106.0"</span>  <span class="comment">// DB client</span><br>
-    <span class="string">"bcryptjs"</span>: <span class="string">"^3.0.3"</span>              <span class="comment">// password hashing (pure JS)</span><br>
-    <span class="string">"dotenv"</span>: <span class="string">"^17.4.2"</span>                <span class="comment">// local dev env vars</span>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 3. AUTH FLOW ═══════════════════════ -->
-<div class="section" id="sec-auth">
-  <div class="section-header">
-    <div class="section-label">03 — Authentication</div>
-    <div class="section-title">How Users Get In</div>
-    <p class="section-desc">Custom session-based auth — no Supabase Auth, no JWTs, no third-party auth providers.</p>
-  </div>
-
-  <h3 style="margin-bottom: 16px;">Login Flow</h3>
-  <div class="flow">
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--cyan);box-shadow:0 0 0 2px var(--cyan);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">1. User submits credentials</div>
-        <div class="flow-desc">Browser sends <code>POST /api/auth</code> with <code>{ username, password }</code>. The username is lowercased and trimmed.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--red);box-shadow:0 0 0 2px var(--red);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">2. Rate limit check</div>
-        <div class="flow-desc">Server checks in-memory map: max <strong>7 attempts per 15 minutes</strong> per IP+username combo. Returns <code>429</code> if exceeded.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--yellow);box-shadow:0 0 0 2px var(--yellow);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">3. Lookup & verify</div>
-        <div class="flow-desc">Query <code>engineers</code> table by username. Check <code>is_active</code>. Compare password with bcrypt hash. Same generic error for "not found" and "wrong password" to prevent user enumeration.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--green);box-shadow:0 0 0 2px var(--green);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">4. Create session</div>
-        <div class="flow-desc">Generate <code>crypto.randomUUID()</code> token. Insert into <code>sessions</code> table with 30-day expiry. Set <code>pwt_auth</code> cookie: <code>HttpOnly; Secure; SameSite=Lax; Path=/</code>.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--accent);box-shadow:0 0 0 2px var(--accent);"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">5. Return engineer info</div>
-        <div class="flow-desc">Response: <code>{ ok: true, engineer: { id, fullName, role } }</code>. Frontend stores this in <code>currentEngineer</code> and shows the app shell.</div>
-      </div>
-    </div>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">Session Verification (every API call)</h3>
-  <div class="code-block">
-    <span class="comment">// Every protected endpoint starts with:</span><br>
-    <span class="keyword">const</span> session = <span class="keyword">await</span> <span class="fn">getSession</span>(req);<br>
-    <span class="keyword">if</span> (!session) <span class="keyword">return</span> res.<span class="fn">status</span>(<span class="type">401</span>).<span class="fn">json</span>({ error: <span class="string">'Unauthorized'</span> });<br><br>
-    <span class="comment">// getSession() does:</span><br>
-    <span class="comment">// 1. Parse pwt_auth cookie from request headers</span><br>
-    <span class="comment">// 2. Query: sessions JOIN engineers WHERE token = ?</span><br>
-    <span class="comment">// 3. Check expires_at > now()</span><br>
-    <span class="comment">// 4. Check engineers.is_active = true</span><br>
-    <span class="comment">// 5. Return { engineerId, fullName, role } or null</span>
-  </div>
-
-  <div class="grid grid-2" style="margin-top: 24px;">
-    <div class="card" style="border-left: 3px solid var(--yellow);">
-      <div class="card-title">Session Guard</div>
-      <p class="card-desc">When the user switches back to the browser tab, a <code>visibilitychange</code> listener calls <code>GET /api/auth</code> to re-verify the session is still valid. If expired, the user is kicked back to login.</p>
-    </div>
-    <div class="card" style="border-left: 3px solid var(--green);">
-      <div class="card-title">Expired Session Cleanup</div>
-      <p class="card-desc">A background job in <code>getSession()</code> deletes expired sessions from the DB — runs at most once per hour per function instance to avoid hammering the database.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 4. DATA MODEL ═══════════════════════ -->
-<div class="section" id="sec-data">
-  <div class="section-header">
-    <div class="section-label">04 — Data Model</div>
-    <div class="section-title">Database Schema & Relationships</div>
-    <p class="section-desc">5 PostgreSQL tables in Supabase. All primary keys are text UUIDs. Foreign keys enforce referential integrity with cascading deletes.</p>
-  </div>
-
-  <div class="grid grid-2">
-    <!-- engineers -->
-    <div class="db-table">
-      <div class="db-table-name"><span style="color:var(--yellow);">👤</span> engineers</div>
-      <div class="db-col"><span class="db-pk">PK</span> <span class="db-col-name">id</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">username</span> <span class="db-col-type">TEXT UNIQUE</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">password</span> <span class="db-col-type">TEXT (bcrypt)</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">full_name</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">role</span> <span class="db-col-type">'admin' | 'engineer'</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">is_active</span> <span class="db-col-type">BOOLEAN</span></div>
-    </div>
-
-    <!-- sessions -->
-    <div class="db-table">
-      <div class="db-table-name"><span style="color:var(--green);">🔑</span> sessions</div>
-      <div class="db-col"><span class="db-pk">PK</span> <span class="db-col-name">token</span> <span class="db-col-type">TEXT (UUID)</span></div>
-      <div class="db-col"><span class="db-fk">FK</span> <span class="db-col-name">engineer_id</span> <span class="db-col-type">→ engineers.id</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">created_at</span> <span class="db-col-type">TIMESTAMPTZ</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">expires_at</span> <span class="db-col-type">TIMESTAMPTZ</span></div>
-    </div>
-
-    <!-- sites -->
-    <div class="db-table">
-      <div class="db-table-name"><span style="color:var(--accent);">📍</span> sites <span class="tag tag-blue" style="margin-left:auto;">Leads</span></div>
-      <div class="db-col"><span class="db-pk">PK</span> <span class="db-col-name">id</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span class="db-fk">FK</span> <span class="db-col-name">engineer_id</span> <span class="db-col-type">→ engineers.id</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">name</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">contact, phone, location</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">equipment, specs</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">status</span> <span class="db-col-type">TEXT (pipeline stage)</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">next_action, due_date, notes</span> <span class="db-col-type">TEXT</span></div>
-    </div>
-
-    <!-- clients -->
-    <div class="db-table">
-      <div class="db-table-name"><span style="color:var(--green);">🏢</span> clients <span class="tag tag-green" style="margin-left:auto;">Clients</span></div>
-      <div class="db-col"><span class="db-pk">PK</span> <span class="db-col-name">id</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span class="db-fk">FK</span> <span class="db-col-name">engineer_id</span> <span class="db-col-type">→ engineers.id</span></div>
-      <div class="db-col"><span class="db-fk">FK</span> <span class="db-col-name">converted_from</span> <span class="db-col-type">→ sites.id (nullable)</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">name, contact, phone, location</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">equipment, specs, notes</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">converted_at</span> <span class="db-col-type">TIMESTAMPTZ</span></div>
-    </div>
-  </div>
-
-  <!-- client_products -->
-  <div class="db-table" style="margin-top: 16px;">
-    <div class="db-table-name"><span style="color:var(--orange);">📦</span> client_products <span class="tag tag-orange" style="margin-left:auto;">Inventory</span></div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0;">
-      <div class="db-col"><span class="db-pk">PK</span> <span class="db-col-name">id</span> <span class="db-col-type">TEXT</span></div>
-      <div class="db-col"><span class="db-fk">FK</span> <span class="db-col-name">client_id</span> <span class="db-col-type">→ clients.id</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">category</span> <span class="db-col-type">boilers | cooling_towers | chillers | swimming_pools</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">product_name</span> <span class="db-col-type">TEXT (from catalog)</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">model, quantity</span> <span class="db-col-type">TEXT, INTEGER</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">install_date, next_maintenance_date</span> <span class="db-col-type">DATE</span></div>
-      <div class="db-col"><span style="width:22px;display:inline-block;"></span> <span class="db-col-name">status</span> <span class="db-col-type">'active' | 'running_out_of_stock'</span></div>
-    </div>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">Relationship Map</h3>
-  <div class="code-block" style="font-size: 13px; line-height: 2;">
-    <span class="type">engineers</span> <span class="dim">──┬──</span> <span class="keyword">1:N</span> <span class="dim">──→</span> <span class="type">sessions</span>     <span class="comment">  (auth tokens, CASCADE delete)</span><br>
-    <span class="dim">            ├──</span> <span class="keyword">1:N</span> <span class="dim">──→</span> <span class="type">sites</span>        <span class="comment">  (leads owned by engineer)</span><br>
-    <span class="dim">            └──</span> <span class="keyword">1:N</span> <span class="dim">──→</span> <span class="type">clients</span>      <span class="comment">  (clients owned by engineer, CASCADE delete)</span><br>
-    <br>
-    <span class="type">sites</span> <span class="dim">──────</span> <span class="keyword">1:1</span> <span class="dim">──→</span> <span class="type">clients</span>.<span class="fn">converted_from</span>  <span class="comment">(a client can come from a lead)</span><br>
-    <br>
-    <span class="type">clients</span> <span class="dim">────</span> <span class="keyword">1:N</span> <span class="dim">──→</span> <span class="type">client_products</span>  <span class="comment">  (products purchased, CASCADE delete)</span>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 5. API LAYER ═══════════════════════ -->
-<div class="section" id="sec-api">
-  <div class="section-header">
-    <div class="section-label">05 — API Layer</div>
-    <div class="section-title">Serverless Endpoints</div>
-    <p class="section-desc">Each file in <code>/api/</code> becomes a Vercel serverless function. Every endpoint (except extract) follows the same pattern: authenticate → check ownership → query Supabase → return JSON.</p>
-  </div>
-
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Endpoint</th>
-        <th>Methods</th>
-        <th>Auth</th>
-        <th>Purpose</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>/api/auth</code></td>
-        <td>
-          <span class="tag tag-green">GET</span>
-          <span class="tag tag-blue">POST</span>
-          <span class="tag tag-red">DELETE</span>
-        </td>
-        <td>Public (POST)<br>Cookie (GET/DEL)</td>
-        <td><strong>GET</strong>: check session validity → return engineer info<br><strong>POST</strong>: login with username+password → set cookie<br><strong>DELETE</strong>: logout → clear cookie & delete session</td>
-      </tr>
-      <tr>
-        <td><code>/api/sites</code></td>
-        <td>
-          <span class="tag tag-green">GET</span>
-          <span class="tag tag-blue">POST</span>
-          <span class="tag tag-red">DELETE</span>
-        </td>
-        <td>Session required</td>
-        <td><strong>GET</strong>: list leads (engineer's own, or all if admin)<br><strong>POST</strong>: create/update lead (upsert, ownership check)<br><strong>DELETE</strong>: remove lead (ownership check)</td>
-      </tr>
-      <tr>
-        <td><code>/api/clients</code></td>
-        <td>
-          <span class="tag tag-green">GET</span>
-          <span class="tag tag-blue">POST</span>
-          <span class="tag tag-red">DELETE</span>
-        </td>
-        <td>Session required</td>
-        <td><strong>GET</strong>: list clients with product counts & low-stock counts<br><strong>POST</strong>: create/update client (ownership check)<br><strong>DELETE</strong>: remove client (cascades to products)</td>
-      </tr>
-      <tr>
-        <td><code>/api/products</code></td>
-        <td>
-          <span class="tag tag-green">GET</span>
-          <span class="tag tag-blue">POST</span>
-          <span class="tag tag-red">DELETE</span>
-        </td>
-        <td>Session required</td>
-        <td><strong>GET</strong>: list products for a client (verifies client ownership)<br><strong>POST</strong>: create/update product (verifies client ownership)<br><strong>DELETE</strong>: remove product (verifies via join to client)</td>
-      </tr>
-      <tr>
-        <td><code>/api/convert</code></td>
-        <td><span class="tag tag-blue">POST</span></td>
-        <td>Session required</td>
-        <td>Convert a "Closed Won" lead into a client. Copies all fields, sets <code>converted_from</code> reference. Prevents duplicate conversion.</td>
-      </tr>
-      <tr>
-        <td><code>/api/engineers</code></td>
-        <td>
-          <span class="tag tag-green">GET</span>
-          <span class="tag tag-blue">POST</span>
-          <span class="tag tag-red">DELETE</span>
-        </td>
-        <td><strong>Admin only</strong></td>
-        <td><strong>GET</strong>: list all engineers<br><strong>POST</strong>: create/update engineer (bcrypt hash on create)<br><strong>DELETE</strong>: soft-disable (sets <code>is_active=false</code>)</td>
-      </tr>
-      <tr>
-        <td><code>/api/extract</code></td>
-        <td><span class="tag tag-blue">POST</span></td>
-        <td>Session required</td>
-        <td>Send text/image/audio to Gemini 2.5 Flash → returns structured lead data (name, contact, equipment, status, etc.)</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3 style="margin: 32px 0 16px;">Common Pattern in Every Endpoint</h3>
-  <div class="code-block">
-    <span class="keyword">export default async function</span> <span class="fn">handler</span>(req, res) {<br>
-    &nbsp;&nbsp;<span class="comment">// 1. Authenticate</span><br>
-    &nbsp;&nbsp;<span class="keyword">const</span> session = <span class="keyword">await</span> <span class="fn">getSession</span>(req);<br>
-    &nbsp;&nbsp;<span class="keyword">if</span> (!session) <span class="keyword">return</span> res.<span class="fn">status</span>(<span class="type">401</span>);<br><br>
-    &nbsp;&nbsp;<span class="comment">// 2. Extract role info</span><br>
-    &nbsp;&nbsp;<span class="keyword">const</span> { engineerId, role } = session;<br>
-    &nbsp;&nbsp;<span class="keyword">const</span> isAdmin = role === <span class="string">'admin'</span>;<br><br>
-    &nbsp;&nbsp;<span class="comment">// 3. Route by HTTP method</span><br>
-    &nbsp;&nbsp;<span class="keyword">if</span> (req.method === <span class="string">'GET'</span>) { <span class="comment">/* query with ownership filter */</span> }<br>
-    &nbsp;&nbsp;<span class="keyword">if</span> (req.method === <span class="string">'POST'</span>) { <span class="comment">/* upsert with ownership check */</span> }<br>
-    &nbsp;&nbsp;<span class="keyword">if</span> (req.method === <span class="string">'DELETE'</span>) { <span class="comment">/* delete with ownership check */</span> }<br>
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0d1518;
+      --surface:   #141f22;
+      --surface-2: #1b282c;
+      --ink:       #dde6e6;
+      --ink-2:     #a3b4b6;
+      --ink-3:     #78898c;
+      --rule:      #2a3a3e;
+      --rule-2:    #223134;
+      --accent:    #4fc3d4;
+      --accent-bg: #103038;
+      --warn:      #d9a05a;
+      --warn-bg:   #33260f;
+      --danger:    #e08a80;
+      --danger-bg: #3a1e1b;
+      --ok:        #74c295;
+      --ok-bg:     #14301f;
     }
-  </div>
-</div>
+  }
 
-<!-- ═══════════════════════ 6. FRONTEND ═══════════════════════ -->
-<div class="section" id="sec-frontend">
-  <div class="section-header">
-    <div class="section-label">06 — Frontend Architecture</div>
-    <div class="section-title">The Single-Page Application</div>
-    <p class="section-desc">Everything lives in one <code>index.html</code> file. No React, no Vue — just vanilla JS manipulating the DOM directly. The file has a clear internal structure:</p>
-  </div>
+  :root[data-theme="dark"] {
+    --paper:     #0d1518;
+    --surface:   #141f22;
+    --surface-2: #1b282c;
+    --ink:       #dde6e6;
+    --ink-2:     #a3b4b6;
+    --ink-3:     #78898c;
+    --rule:      #2a3a3e;
+    --rule-2:    #223134;
+    --accent:    #4fc3d4;
+    --accent-bg: #103038;
+    --warn:      #d9a05a;
+    --warn-bg:   #33260f;
+    --danger:    #e08a80;
+    --danger-bg: #3a1e1b;
+    --ok:        #74c295;
+    --ok-bg:     #14301f;
+  }
 
-  <div class="grid grid-2">
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 1100px; margin: 0 auto; padding: 0 28px 120px; }
+
+  /* ── masthead ── */
+  .masthead { padding: 72px 0 40px; border-bottom: 2px solid var(--ink); }
+  .stamp {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 20px;
+    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  }
+  .stamp span::before { content: "·"; margin-right: 14px; color: var(--rule); }
+  .stamp span:first-child::before { content: none; margin: 0; }
+  h1 {
+    font-family: Archivo, sans-serif; font-weight: 700;
+    font-size: clamp(38px, 6vw, 68px); line-height: 1.02;
+    letter-spacing: -.025em; margin: 0 0 20px; text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(17px, 2vw, 20px); line-height: 1.55;
+    color: var(--ink-2); max-width: var(--measure); margin: 0;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ── sections ── */
+  section { padding-top: 68px; }
+  .label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-3); display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .label::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+  h2 {
+    font-family: Archivo, sans-serif; font-weight: 600;
+    font-size: clamp(26px, 3.4vw, 36px); line-height: 1.12;
+    letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance;
+  }
+  h3 {
+    font-family: Archivo, sans-serif; font-weight: 600;
+    font-size: 18px; letter-spacing: -.01em; margin: 32px 0 10px;
+  }
+  p { max-width: var(--measure); margin: 0 0 16px; }
+  .lede { font-size: 17.5px; color: var(--ink-2); }
+  code {
+    font-family: "IBM Plex Mono", monospace; font-size: .875em;
+    background: var(--surface-2); padding: .12em .38em;
+    border-radius: 3px; color: var(--ink);
+  }
+  strong { font-weight: 600; }
+
+  /* ── figures ── */
+  figure {
+    margin: 34px 0; padding: 26px 22px 18px;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; min-width: 560px; }
+  figcaption {
+    font-size: 13.5px; color: var(--ink-3); margin-top: 18px;
+    padding-top: 14px; border-top: 1px solid var(--rule-2);
+    max-width: var(--measure); line-height: 1.55;
+  }
+
+  /* ── callouts ── */
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-bg);
+    padding: 18px 22px; margin: 28px 0; border-radius: 0 4px 4px 0;
+  }
+  .note.warn   { border-color: var(--warn);   background: var(--warn-bg); }
+  .note.danger { border-color: var(--danger); background: var(--danger-bg); }
+  .note p { margin: 0; max-width: none; }
+  .note p + p { margin-top: 10px; }
+  .note-title {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    letter-spacing: .14em; text-transform: uppercase;
+    margin-bottom: 8px; color: var(--accent);
+  }
+  .note.warn   .note-title { color: var(--warn); }
+  .note.danger .note-title { color: var(--danger); }
+
+  /* ── tables ── */
+  .table-wrap { overflow-x: auto; margin: 28px 0; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14.5px; }
+  thead th {
+    background: var(--surface-2); text-align: left;
+    font-family: "IBM Plex Mono", monospace; font-weight: 500;
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-2); padding: 12px 16px; border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td.ep { white-space: nowrap; }
+  td.ep code { background: none; padding: 0; color: var(--accent); font-weight: 500; font-size: 14px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .verb {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500;
+    padding: 2px 6px; border-radius: 3px; margin-right: 4px;
+    background: var(--surface-2); color: var(--ink-2); letter-spacing: .04em;
+  }
+  .pill {
+    display: inline-block; font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 100px; white-space: nowrap;
+  }
+  .pill.ok     { background: var(--ok-bg);     color: var(--ok); }
+  .pill.warn   { background: var(--warn-bg);   color: var(--warn); }
+  .pill.danger { background: var(--danger-bg); color: var(--danger); }
+  .pill.mute   { background: var(--surface-2); color: var(--ink-3); }
+
+  /* ── two-up ── */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin: 30px 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 22px;
+  }
+  .card h3 { margin-top: 0; }
+  .card p { max-width: none; font-size: 15px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card-tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+
+  ul { max-width: var(--measure); padding-left: 20px; }
+  li { margin-bottom: 9px; }
+  li::marker { color: var(--accent); }
+
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 20px 0; font-size: 14.5px; }
+  .kv dt { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+  .kv dd { margin: 0; }
+
+  footer {
+    margin-top: 84px; padding-top: 22px; border-top: 2px solid var(--ink);
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
+    color: var(--ink-3); letter-spacing: .04em;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+
+  @media (max-width: 720px) {
+    .split { grid-template-columns: 1fr; }
+    .sheet { padding: 0 18px 80px; }
+    .masthead { padding-top: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="sheet">
+
+<header class="masthead">
+  <div class="stamp">
+    <span>System Map</span><span>PWT Sales Tracker</span><span>Verified 29 Aug 2026</span>
+  </div>
+  <h1>Where the traffic actually goes</h1>
+  <p class="standfirst">
+    The single most useful fact about this system: <strong>Vercel and Supabase never talk to
+    each other.</strong> The browser talks to both, separately. Almost every wrong assumption
+    about this app — a phantom second database, an unused <code>/api</code> mirror, a login that
+    broke for a week — traces back to imagining a link between them that has never existed.
+  </p>
+</header>
+
+<!-- ══════════════════ TOPOLOGY ══════════════════ -->
+<section>
+  <div class="label">01 — Topology</div>
+  <h2>Two independent systems, one browser</h2>
+  <p class="lede">
+    Vercel serves files. Supabase runs code and holds data. The browser is the only thing that
+    touches both, and it reaches them over two completely separate connections.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 900 420" role="img" aria-label="The browser makes two independent connections: one to Vercel's CDN for static files, one to Supabase Edge Functions for all data. Vercel and Supabase have no connection to each other.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#0d7d8c"/>
+        </marker>
+      </defs>
+
+      <!-- browser -->
+      <rect x="24" y="158" width="156" height="104" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="102" y="196" text-anchor="middle" font-family="Archivo, sans-serif" font-size="16" font-weight="600" fill="currentColor">Browser</text>
+      <text x="102" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor" opacity=".62">the PWA</text>
+      <text x="102" y="236" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">index.html</text>
+
+      <!-- vercel -->
+      <rect x="372" y="42" width="208" height="92" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="476" y="74" text-anchor="middle" font-family="Archivo, sans-serif" font-size="15" font-weight="600" fill="currentColor">Vercel CDN</text>
+      <text x="476" y="94" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">static files only</text>
+      <text x="476" y="112" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">runs no code</text>
+
+      <!-- supabase group -->
+      <rect x="336" y="212" width="540" height="176" rx="5" fill="none" stroke="#0d7d8c" stroke-width="1.5"/>
+      <text x="352" y="234" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.4" fill="#0d7d8c">SUPABASE</text>
+
+      <rect x="360" y="250" width="188" height="112" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="454" y="284" text-anchor="middle" font-family="Archivo, sans-serif" font-size="15" font-weight="600" fill="currentColor">Edge Functions</text>
+      <text x="454" y="304" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">11 × Deno</text>
+      <text x="454" y="322" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">auth · leads · clients …</text>
+      <text x="454" y="342" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">checks your token</text>
+
+      <rect x="654" y="250" width="196" height="112" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="752" y="284" text-anchor="middle" font-family="Archivo, sans-serif" font-size="15" font-weight="600" fill="currentColor">PostgreSQL</text>
+      <text x="752" y="304" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">9 tables</text>
+      <text x="752" y="322" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">RLS: service_role only</text>
+
+      <!-- browser -> vercel -->
+      <path d="M 180 194 C 260 194, 280 88, 366 88" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="248" y="126" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">GET /</text>
+      <text x="248" y="142" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="currentColor" opacity=".62">HTML · CSS · JS</text>
+
+      <!-- browser -> supabase -->
+      <path d="M 180 234 C 250 234, 270 300, 354 300" fill="none" stroke="#0d7d8c" stroke-width="2" marker-end="url(#ar-acc)"/>
+      <text x="200" y="272" font-family="IBM Plex Mono, monospace" font-size="11" fill="#0d7d8c">fetch()</text>
+      <text x="200" y="288" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#0d7d8c" opacity=".8">+ Bearer token</text>
+
+      <!-- edge -> pg -->
+      <line x1="548" y1="306" x2="648" y2="306" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="598" y="296" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".72">service_role</text>
+
+      <!-- the non-connection -->
+      <line x1="476" y1="134" x2="476" y2="212" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 5" opacity=".3"/>
+      <line x1="464" y1="161" x2="488" y2="185" stroke="#a33a32" stroke-width="2.5"/>
+      <line x1="488" y1="161" x2="464" y2="185" stroke="#a33a32" stroke-width="2.5"/>
+      <text x="502" y="168" font-family="IBM Plex Mono, monospace" font-size="11" fill="#a33a32">no connection</text>
+      <text x="502" y="184" font-family="IBM Plex Mono, monospace" font-size="10" fill="#a33a32" opacity=".8">Vercel holds no data</text>
+      <text x="502" y="199" font-family="IBM Plex Mono, monospace" font-size="10" fill="#a33a32" opacity=".8">and no credentials</text>
+    </svg>
+    <figcaption>
+      The browser opens two independent connections. Nothing crosses between Vercel and Supabase —
+      no proxying, no server-side calls, no shared secrets. Deleting the Vercel project would take
+      the website offline but leave every byte of data untouched.
+    </figcaption>
+  </figure>
+
+  <div class="note">
+    <div class="note-title">The one constant that wires it together</div>
+    <p>
+      The browser knows where the backend is because of a single hard-coded line in
+      <code>index.html</code>. There is no environment variable, no build step, no service discovery:
+    </p>
+    <p><code>const FUNCTIONS_BASE = 'https://hbiquvmldtoinqtmbvgd.supabase.co/functions/v1'</code></p>
+  </div>
+</section>
+
+<!-- ══════════════════ WHO DOES WHAT ══════════════════ -->
+<section>
+  <div class="label">02 — Division of labour</div>
+  <h2>What each side is responsible for</h2>
+
+  <div class="split">
     <div class="card">
-      <div class="card-icon" style="background:var(--purple-dim); color:var(--purple);">🎨</div>
-      <div class="card-title">CSS (Lines 1–1493)</div>
-      <p class="card-desc">~1,500 lines of embedded styles. CSS custom properties for theming (dark/light). Fully responsive with breakpoints at 900px, 768px, 600px, 480px, 380px, and 320px. No external CSS framework.</p>
+      <div class="card-tag">Vercel</div>
+      <h3>Serves the file, then stops</h3>
+      <p>
+        Ships <code>index.html</code>, <code>sw.js</code>, the manifest and images from a CDN, and
+        sets security headers from <code>vercel.json</code>. That is the entire job.
+      </p>
+      <p>
+        There is no build step, no framework, and no <code>api/</code> folder. Every environment
+        variable it once held has been removed, because nothing runs there to read one.
+      </p>
     </div>
     <div class="card">
-      <div class="card-icon" style="background:var(--accent-dim); color:var(--accent);">🏗️</div>
-      <div class="card-title">HTML (Lines 1494–1944)</div>
-      <p class="card-desc">App shell with splash screen, login overlay, header, tab bar, three main sections (leads, clients, engineers), a shared detail page, modals for add/edit, preview overlay, and toast notifications.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--green-dim); color:var(--green);">⚙️</div>
-      <div class="card-title">JavaScript (Lines 1946–3820)</div>
-      <p class="card-desc">~1,900 lines of vanilla JS. Global state variables, fetch wrappers, DOM rendering functions, event handlers, hash router, and utility helpers. No modules — everything is in a single <code>&lt;script&gt;</code> tag.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon" style="background:var(--orange-dim); color:var(--orange);">📊</div>
-      <div class="card-title">Rendering Pattern</div>
-      <p class="card-desc">Data → <code>innerHTML</code>. Functions like <code>renderTable()</code>, <code>renderClientTable()</code>, <code>buildCustomerDetailHTML()</code> build HTML strings from arrays and inject them. All user data is escaped with <code>esc()</code>.</p>
+      <div class="card-tag">Supabase</div>
+      <h3>Runs everything that thinks</h3>
+      <p>
+        Eleven Deno Edge Functions authenticate each request, enforce ownership, and query
+        PostgreSQL using the service-role key — which never leaves the server.
+      </p>
+      <p>
+        It also holds the database, the scheduled jobs, and every secret the system needs:
+        the Gemini key, the push-notification keys, the cron secret.
+      </p>
     </div>
   </div>
 
-  <h3 style="margin: 32px 0 16px;">Global State</h3>
-  <div class="code-block">
-    <span class="keyword">let</span> sites = [];              <span class="comment">// Lead records from /api/sites</span><br>
-    <span class="keyword">let</span> clients = [];            <span class="comment">// Client records from /api/clients</span><br>
-    <span class="keyword">let</span> engineers = [];          <span class="comment">// Engineer records from /api/engineers (admin)</span><br>
-    <span class="keyword">let</span> currentEngineer = <span class="keyword">null</span>; <span class="comment">// { id, fullName, role } — logged-in user</span><br>
-    <span class="keyword">let</span> activeTab = <span class="string">'leads'</span>;     <span class="comment">// 'leads' | 'clients' | 'engineers'</span><br>
-    <span class="keyword">let</span> isAuthenticated = <span class="keyword">false</span>;<br>
-    <span class="keyword">let</span> filterStatus = <span class="string">'All'</span>;   <span class="comment">// Status filter for leads list</span><br>
-    <span class="keyword">let</span> sortCol = <span class="string">'name'</span>;       <span class="comment">// Column to sort by</span><br>
-    <span class="keyword">let</span> sortAsc = <span class="keyword">true</span>;         <span class="comment">// Sort direction</span><br>
-    <span class="keyword">let</span> currentClientProducts = [];  <span class="comment">// Products in current client detail</span><br>
-    <span class="keyword">let</span> productFilterCategory = <span class="string">'All'</span>; <span class="comment">// Category filter in client detail</span>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">App Initialization Sequence</h3>
-  <div class="flow">
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">Show splash screen</div>
-        <div class="flow-desc">Animated "PWT SALES" logo + spinner. Visible immediately on page load.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title"><code>loadData()</code> runs</div>
-        <div class="flow-desc">Calls <code>GET /api/auth</code> to check if the cookie session is valid.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--red);box-shadow:0 0 0 2px var(--red);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">Not authenticated → show login</div>
-        <div class="flow-desc">Hide splash, show login overlay with username + password form.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot" style="background:var(--green);box-shadow:0 0 0 2px var(--green);"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">Authenticated → show app with skeletons</div>
-        <div class="flow-desc">Set <code>currentEngineer</code>, hide splash, show app shell with loading skeletons while data fetches.</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">Fetch leads from <code>/api/sites</code></div>
-        <div class="flow-desc">Store in <code>sites[]</code> array. Check for local storage migration (one-time import from pre-auth era).</div>
-      </div>
-    </div>
-    <div class="flow-step">
-      <div class="flow-line"><div class="flow-dot"></div></div>
-      <div class="flow-content">
-        <div class="flow-title">Render & route</div>
-        <div class="flow-desc"><code>renderStats()</code> → <code>renderPills()</code> → <code>renderTable()</code> → <code>handleRoute()</code> to show the right view based on URL hash.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 7. ROUTING ═══════════════════════ -->
-<div class="section" id="sec-routing">
-  <div class="section-header">
-    <div class="section-label">07 — Routing</div>
-    <div class="section-title">Hash-Based Navigation</div>
-    <p class="section-desc">The SPA uses <code>location.hash</code> for routing. No library — just a <code>hashchange</code> listener that calls <code>handleRoute()</code>.</p>
-  </div>
-
-  <table class="data-table">
-    <thead>
-      <tr><th>Hash</th><th>View</th><th>Access</th><th>What Loads</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>#</code> <span class="tag tag-green" style="margin-left:4px;">default</span></td>
-        <td>Leads list</td>
-        <td>All users</td>
-        <td>Stats row, status filter pills, sortable table of leads</td>
-      </tr>
-      <tr>
-        <td><code>#lead/{id}</code></td>
-        <td>Lead detail</td>
-        <td>All users</td>
-        <td>Full lead info, edit/delete buttons, "Convert to Client" (if Closed Won)</td>
-      </tr>
-      <tr>
-        <td><code>#clients</code></td>
-        <td>Clients list</td>
-        <td>All users</td>
-        <td>Stats row, searchable table with product counts & category chips</td>
-      </tr>
-      <tr>
-        <td><code>#customer/{id}</code></td>
-        <td>Client detail</td>
-        <td>All users</td>
-        <td>Client info, products grouped by category with filter pills, add/edit product</td>
-      </tr>
-      <tr>
-        <td><code>#engineers</code></td>
-        <td>Team list</td>
-        <td><span class="tag tag-red">Admin</span></td>
-        <td>Stats row, table of all engineers with status, edit/add controls</td>
-      </tr>
-      <tr>
-        <td><code>#engineer/{id}</code></td>
-        <td>Engineer profile</td>
-        <td><span class="tag tag-red">Admin</span></td>
-        <td>Engineer info header, summary stats, their leads table, their clients table</td>
-      </tr>
-      <tr>
-        <td><code>#client/{id}</code></td>
-        <td><em>Redirect</em></td>
-        <td>—</td>
-        <td>Legacy URL — auto-redirects to <code>#lead/{id}</code></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3 style="margin: 32px 0 16px;">How Views Toggle</h3>
-  <div class="code-block">
-    <span class="comment">// The app has 4 visibility layers:</span><br><br>
-    <span class="type">&lt;main&gt;</span>          <span class="comment">← Leads list (table, stats, pills)</span><br>
-    <span class="type">#clientsSection</span>  <span class="comment">← Clients list (table, stats)</span><br>
-    <span class="type">#engineersSection</span> <span class="comment">← Engineers list (table, stats) [admin only]</span><br>
-    <span class="type">#detailPage</span>      <span class="comment">← Shared detail view (lead OR client OR engineer)</span><br><br>
-    <span class="comment">// switchTab() shows one list, hides others</span><br>
-    <span class="comment">// Detail views hide ALL lists + banner + tab bar</span><br>
-    <span class="comment">// backToList() navigates back to the active tab's list</span>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 8. ROLES ═══════════════════════ -->
-<div class="section" id="sec-roles">
-  <div class="section-header">
-    <div class="section-label">08 — Roles & Access Control</div>
-    <div class="section-title">Who Can Do What</div>
-    <p class="section-desc">Two roles: <strong>admin</strong> and <strong>engineer</strong>. The role is stored in the <code>engineers.role</code> column and checked both server-side and client-side.</p>
-  </div>
-
-  <div class="role-grid">
-    <div class="role-card">
-      <h3><span class="tag tag-purple">Admin</span> Full Access</h3>
-      <ul class="role-list">
-        <li>See all leads from all engineers</li>
-        <li>See all clients from all engineers</li>
-        <li>Edit/delete any lead or client</li>
-        <li>View the Team tab (engineer list)</li>
-        <li>Create new engineer accounts</li>
-        <li>Disable/edit engineer accounts</li>
-        <li>View engineer profiles (their leads & clients)</li>
-        <li>Filter leads/clients by specific engineer</li>
-      </ul>
-    </div>
-    <div class="role-card">
-      <h3><span class="tag tag-blue">Engineer</span> Scoped Access</h3>
-      <ul class="role-list">
-        <li>See only their own leads</li>
-        <li>See only their own clients</li>
-        <li>Create/edit/delete own leads & clients</li>
-        <li>Manage products on own clients</li>
-        <li>Convert own "Closed Won" leads to clients</li>
-        <li>Use AI extraction to create leads</li>
-        <li class="denied">Cannot see Team tab</li>
-        <li class="denied">Cannot see other engineers' data</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">How It's Enforced</h3>
-  <div class="grid grid-2">
-    <div class="card" style="border-left: 3px solid var(--accent);">
-      <div class="card-title">Server-side (API layer)</div>
-      <p class="card-desc">Every GET query filters by <code>engineer_id</code> unless the user is admin. Every POST/DELETE verifies the record belongs to the requesting engineer. Admin-only endpoints return <code>403</code> for non-admins.</p>
-    </div>
-    <div class="card" style="border-left: 3px solid var(--purple);">
-      <div class="card-title">Client-side (UI layer)</div>
-      <p class="card-desc">Elements with class <code>.admin-only</code> are hidden via <code>display:none</code> for non-admins. The <code>#engineer/</code> and <code>#engineers</code> routes redirect non-admins to <code>#</code>. This is cosmetic — real enforcement is server-side.</p>
-    </div>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">The Sales Pipeline</h3>
-  <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 16px;">Leads progress through these statuses. When a lead reaches "Closed Won", it can be converted to a client:</p>
-  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-    <span class="tag tag-blue">Potential Prospect</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-cyan">Qualified Prospect</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-purple">Interested Prospect</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-orange">Hot Prospect</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-orange">Hot Lead</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-green">Closed Won ✓</span>
-    <span style="color:var(--text-muted);">→</span>
-    <span class="tag tag-green" style="background: #064e3b; border: 1px dashed var(--green);">Convert to Client</span>
-  </div>
-  <div style="margin-top: 8px;">
-    <span class="tag tag-red" style="margin-left: 0;">Lost</span>
-    <span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">← can happen at any stage</span>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 9. SECURITY ═══════════════════════ -->
-<div class="section" id="sec-security">
-  <div class="section-header">
-    <div class="section-label">09 — Security</div>
-    <div class="section-title">Defense in Depth</div>
-  </div>
-
-  <div class="shield-grid">
-    <div class="shield-item">
-      <div class="shield-icon">🔒</div>
-      <div>
-        <div class="shield-label">HttpOnly Cookies</div>
-        <div class="shield-desc">Session token is inaccessible to JavaScript — prevents XSS token theft.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🔑</div>
-      <div>
-        <div class="shield-label">bcrypt Password Hashing</div>
-        <div class="shield-desc">Passwords stored as bcrypt hashes (cost factor 10). Plaintext never stored or logged.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🛡️</div>
-      <div>
-        <div class="shield-label">Rate Limiting</div>
-        <div class="shield-desc">7 login attempts per 15 minutes per IP+username. In-memory map with automatic cleanup.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🧹</div>
-      <div>
-        <div class="shield-label">Input Validation</div>
-        <div class="shield-desc">Server-side allowlists for status values and product categories. Rejects unknown values.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🔐</div>
-      <div>
-        <div class="shield-label">Service Role Key</div>
-        <div class="shield-desc">Database accessed with service role key (server-side only). Never exposed to the browser.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">👤</div>
-      <div>
-        <div class="shield-label">Ownership Checks</div>
-        <div class="shield-desc">Every mutation verifies the record belongs to the requesting engineer (or admin). No cross-tenant access.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🚫</div>
-      <div>
-        <div class="shield-label">Generic Error Messages</div>
-        <div class="shield-desc">"Invalid username or password" for both wrong-user and wrong-password to prevent enumeration.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">📋</div>
-      <div>
-        <div class="shield-label">XSS Prevention</div>
-        <div class="shield-desc">All user data escaped with <code>esc()</code> before innerHTML injection. Content-Type: nosniff header.</div>
-      </div>
-    </div>
-    <div class="shield-item">
-      <div class="shield-icon">🌐</div>
-      <div>
-        <div class="shield-label">Security Headers</div>
-        <div class="shield-desc">HSTS (1 year), X-Frame-Options: DENY, Referrer-Policy: strict-origin, X-Content-Type-Options: nosniff.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════ 10. FILE MAP ═══════════════════════ -->
-<div class="section" id="sec-files">
-  <div class="section-header">
-    <div class="section-label">10 — File Map</div>
-    <div class="section-title">Project Structure</div>
-  </div>
-
-  <div class="file-tree">
-    <span class="folder">pwt/</span><br>
-    <span class="indent">├── </span><span class="file">index.html</span> <span class="lines">(3,822 lines)</span> <span class="desc">— Entire SPA: CSS + HTML + JS</span><br>
-    <span class="indent">├── </span><span class="file">package.json</span> <span class="desc">— 3 dependencies: supabase-js, bcryptjs, dotenv</span><br>
-    <span class="indent">├── </span><span class="file">vercel.json</span> <span class="desc">— Security headers, cache control</span><br>
-    <span class="indent">├── </span><span class="file">migrate.sql</span> <span class="desc">— Full database schema (run once in Supabase)</span><br>
-    <span class="indent">├── </span><span class="file">logoo.png</span> <span class="desc">— PWT logo for header</span><br>
-    <span class="indent">├── </span><span class="file">favicon.ico / favicon-32.png / apple-touch-icon.png</span><br>
-    <span class="indent">│</span><br>
-    <span class="indent">├── </span><span class="folder">api/</span> <span class="desc">— Vercel serverless functions</span><br>
-    <span class="indent">│   ├── </span><span class="file">auth.js</span> <span class="lines">(126 lines)</span> <span class="desc">— Login, logout, session check + rate limiting</span><br>
-    <span class="indent">│   ├── </span><span class="file">sites.js</span> <span class="lines">(126 lines)</span> <span class="desc">— Leads CRUD with ownership + status validation</span><br>
-    <span class="indent">│   ├── </span><span class="file">clients.js</span> <span class="lines">(151 lines)</span> <span class="desc">— Clients CRUD with product aggregation</span><br>
-    <span class="indent">│   ├── </span><span class="file">products.js</span> <span class="lines">(128 lines)</span> <span class="desc">— Product inventory CRUD via client ownership</span><br>
-    <span class="indent">│   ├── </span><span class="file">convert.js</span> <span class="lines">(99 lines)</span> <span class="desc">— Lead → Client conversion (Closed Won only)</span><br>
-    <span class="indent">│   ├── </span><span class="file">engineers.js</span> <span class="lines">(99 lines)</span> <span class="desc">— Engineer management (admin only)</span><br>
-    <span class="indent">│   └── </span><span class="file">extract.js</span> <span class="lines">(81 lines)</span> <span class="desc">— Gemini AI extraction (text/image/audio → fields)</span><br>
-    <span class="indent">│</span><br>
-    <span class="indent">└── </span><span class="folder">lib/</span> <span class="desc">— Shared server utilities</span><br>
-    <span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;├── </span><span class="file">auth.js</span> <span class="lines">(113 lines)</span> <span class="desc">— Session management: getSession, create, delete, cookies</span><br>
-    <span class="indent">&nbsp;&nbsp;&nbsp;&nbsp;└── </span><span class="file">db.js</span> <span class="lines">(14 lines)</span> <span class="desc">— Singleton Supabase client with service role key</span><br>
-  </div>
-
-  <h3 style="margin: 32px 0 16px;">Environment Variables</h3>
-  <table class="data-table">
-    <thead>
-      <tr><th>Variable</th><th>Where</th><th>Purpose</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><code>SUPABASE_URL</code></td><td>Vercel env</td><td>Supabase project URL</td></tr>
-      <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Vercel env</td><td>Full-access database key (server-side only)</td></tr>
-      <tr><td><code>GEMINI_API_KEY</code></td><td>Vercel env</td><td>Google Gemini API key for AI extraction</td></tr>
-    </tbody>
-  </table>
-
-  <div class="card" style="margin-top: 32px; border-left: 3px solid var(--cyan);">
-    <div class="card-title">Total Codebase Size</div>
-    <p class="card-desc" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 8px;">
-      Frontend: <strong>3,822 lines</strong> (1 file) &nbsp;•&nbsp;
-      Backend: <strong>810 lines</strong> (7 API + 2 lib files) &nbsp;•&nbsp;
-      Config: <strong>~120 lines</strong> (SQL, JSON, package) &nbsp;•&nbsp;
-      <strong style="color:var(--accent);">Total: ~4,750 lines</strong>
+  <div class="note warn">
+    <div class="note-title">Why this trips people up</div>
+    <p>
+      Because Vercel hosts the site, it is natural to assume Vercel is <em>the backend</em>. It
+      isn't. That assumption produced a parallel <code>api/</code> folder of serverless functions
+      that mirrored every endpoint, sat unused for months, and quietly offered a second unguarded
+      door into the same database. It has since been deleted and blocked in <code>.vercelignore</code>.
     </p>
   </div>
+</section>
+
+<!-- ══════════════════ REQUEST LIFECYCLE ══════════════════ -->
+<section>
+  <div class="label">03 — Request lifecycle</div>
+  <h2>From password to data</h2>
+  <p class="lede">
+    Authentication is custom — no Supabase Auth, no JWTs, no third-party provider. A session is an
+    opaque 64-character token in a database table.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 900 340" role="img" aria-label="Login sends username and password to the auth function, which verifies a bcrypt hash and returns an opaque token. The browser stores it and sends it as a Bearer header on every later request, which each function validates against the sessions table.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- lanes -->
+      <text x="86"  y="30" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.2" fill="currentColor" opacity=".6">BROWSER</text>
+      <text x="450" y="30" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.2" fill="#0d7d8c">EDGE FUNCTION</text>
+      <text x="806" y="30" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.2" fill="currentColor" opacity=".6">POSTGRES</text>
+      <line x1="86"  y1="42" x2="86"  y2="316" stroke="currentColor" stroke-width="1" opacity=".22"/>
+      <line x1="450" y1="42" x2="450" y2="316" stroke="#0d7d8c" stroke-width="1" opacity=".45"/>
+      <line x1="806" y1="42" x2="806" y2="316" stroke="currentColor" stroke-width="1" opacity=".22"/>
+
+      <!-- step 1 -->
+      <text x="24" y="72" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#0d7d8c">1</text>
+      <line x1="90" y1="80" x2="440" y2="80" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <text x="264" y="70" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">POST /auth · { username, password }</text>
+
+      <!-- step 2 -->
+      <text x="24" y="126" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#0d7d8c">2</text>
+      <line x1="456" y1="120" x2="796" y2="120" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <text x="626" y="110" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">look up engineer · compare bcrypt hash</text>
+      <text x="626" y="138" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">rate-limited: 7 tries / 15 min</text>
+
+      <!-- step 3 -->
+      <text x="24" y="180" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#0d7d8c">3</text>
+      <line x1="796" y1="174" x2="460" y2="174" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <text x="626" y="164" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">INSERT sessions · 32 random bytes</text>
+      <text x="626" y="192" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">expires in 30 days</text>
+
+      <!-- step 4 -->
+      <text x="24" y="234" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#0d7d8c">4</text>
+      <line x1="444" y1="228" x2="94" y2="228" stroke="#0d7d8c" stroke-width="2" marker-end="url(#ar2)" color="#0d7d8c"/>
+      <text x="264" y="218" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#0d7d8c">{ token, engineer }</text>
+      <text x="264" y="246" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">stored in localStorage['pwt_token']</text>
+
+      <!-- step 5 -->
+      <text x="24" y="292" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="#0d7d8c">5</text>
+      <line x1="90" y1="286" x2="440" y2="286" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <text x="264" y="276" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">every later call · Authorization: Bearer …</text>
+      <text x="264" y="304" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">validated against sessions on each request</text>
+    </svg>
+    <figcaption>
+      Every protected endpoint repeats step 5 independently — there is no shared session cache.
+      <code>getSession()</code> in <code>_shared/auth.ts</code> reads the header, rejects
+      malformed tokens before touching the database, checks expiry, and confirms the engineer is
+      still active.
+    </figcaption>
+  </figure>
+
+  <dl class="kv">
+    <dt>Token shape</dt><dd>64 hex characters — 32 bytes from <code>crypto.getRandomValues()</code></dd>
+    <dt>Stored at</dt><dd><code>localStorage['pwt_token']</code> in the browser, <code>sessions</code> table on the server</dd>
+    <dt>Lifetime</dt><dd>30 days; expired rows deleted on use, plus an hourly sweep</dd>
+    <dt>Not used</dt><dd>Cookies, JWTs, Supabase Auth, refresh tokens</dd>
+  </dl>
+</section>
+
+<!-- ══════════════════ ENDPOINTS ══════════════════ -->
+<section>
+  <div class="label">04 — Endpoint reference</div>
+  <h2>All eleven functions</h2>
+  <p class="lede">
+    Each directory under <code>supabase/functions/</code> becomes one function, served at
+    <code>{FUNCTIONS_BASE}/&lt;name&gt;</code>. Every one answers <code>OPTIONS</code> for CORS
+    preflight before anything else.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Methods</th><th>Who may call it</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ep"><code>/auth</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill mute">public to log in</span></td>
+          <td>Log in, check the current session, log out. The only endpoint reachable without a token.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/leads</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>The sales pipeline. Engineers see their own; admins see everyone's.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/clients</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>Won customers, returned with product counts and low-stock totals.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/products</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>Equipment installed at a client — boilers, cooling towers, chillers, pools.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/activities</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>The follow-up log. One row per call or visit, hanging off a lead <em>or</em> a client.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/convert</code></td>
+          <td><span class="verb">POST</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>Turns a “Closed Won” lead into a client, carrying its follow-up history across.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/engineers</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill warn">admin only</span></td>
+          <td>Team management. Delete is a soft disable; you cannot disable yourself.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/extract</code></td>
+          <td><span class="verb">POST</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>Sends text, a photo or a voice note to Gemini and returns structured lead fields.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/subscribe</code></td>
+          <td><span class="verb">POST</span><span class="verb">DEL</span></td>
+          <td><span class="pill ok">session</span></td>
+          <td>Registers this browser for push notifications.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/notify</code></td>
+          <td><span class="verb">POST</span></td>
+          <td><span class="pill danger">cron / service key</span></td>
+          <td>Not called by the browser. Sends due-date reminders — see the scheduled work below.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>/location</code></td>
+          <td><span class="verb">GET</span><span class="verb">POST</span></td>
+          <td><span class="pill warn">admin reads</span></td>
+          <td>Engineer positions for the admin map. GPS tracking is currently switched off in the app.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <div class="note-title">Two guards worth knowing about</div>
+    <p>
+      <strong>CORS.</strong> Because the browser calls Supabase cross-origin, each function
+      echoes an <code>Access-Control-Allow-Origin</code> only for an allow-listed host —
+      <code>pwt-sales.vercel.app</code> and preview URLs. This list lives in
+      <code>_shared/cors.ts</code>, which is bundled into <em>every</em> function, so deploying
+      only some of them splits the policy and breaks logins on whichever hosts fall out.
+    </p>
+    <p>
+      <strong>The JWT gate.</strong> Supabase can verify a JWT before your code runs. This app
+      sends its own opaque token, which is not a JWT — so the gate must stay off. It is pinned
+      per-function as <code>verify_jwt = false</code> in <code>supabase/config.toml</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ DATA MODEL ══════════════════ -->
+<section>
+  <div class="label">05 — Data model</div>
+  <h2>Nine tables</h2>
+
+  <figure>
+    <svg viewBox="0 0 900 400" role="img" aria-label="Engineers own leads, clients and sessions. A lead converts into a client. Clients own products. The activities table hangs off either a lead or a client through two mutually exclusive columns.">
+      <defs>
+        <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- engineers -->
+      <rect x="26" y="150" width="146" height="70" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="99" y="180" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="currentColor">engineers</text>
+      <text x="99" y="200" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">accounts + roles</text>
+
+      <!-- sessions -->
+      <rect x="26" y="42" width="146" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".72"/>
+      <text x="99" y="68" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="currentColor">sessions</text>
+      <text x="99" y="86" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">login tokens</text>
+      <line x1="99" y1="150" x2="99" y2="108" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+
+      <!-- leads -->
+      <rect x="286" y="60" width="160" height="76" rx="4" fill="none" stroke="#0d7d8c" stroke-width="2"/>
+      <text x="366" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="#0d7d8c">leads</text>
+      <text x="366" y="110" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0d7d8c" opacity=".8">the pipeline</text>
+      <path d="M 172 172 C 220 172, 232 100, 280 100" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+      <text x="196" y="128" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".62">owns</text>
+
+      <!-- clients -->
+      <rect x="286" y="248" width="160" height="76" rx="4" fill="none" stroke="#0d7d8c" stroke-width="2"/>
+      <text x="366" y="278" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="#0d7d8c">clients</text>
+      <text x="366" y="298" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0d7d8c" opacity=".8">won customers</text>
+      <path d="M 172 198 C 220 198, 232 286, 280 286" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+      <text x="196" y="252" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".62">owns</text>
+
+      <!-- convert -->
+      <line x1="366" y1="136" x2="366" y2="242" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ar3)"/>
+      <text x="378" y="186" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor">/convert</text>
+      <text x="378" y="201" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".62">lead becomes client</text>
+
+      <!-- products -->
+      <rect x="556" y="248" width="150" height="76" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="631" y="278" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="currentColor">client_products</text>
+      <text x="631" y="298" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">installed equipment</text>
+      <line x1="446" y1="286" x2="550" y2="286" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+
+      <!-- activities -->
+      <rect x="556" y="60" width="150" height="76" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="631" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="600" fill="currentColor">activities</text>
+      <text x="631" y="110" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">follow-up log</text>
+
+      <line x1="446" y1="94" x2="550" y2="94" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+      <text x="498" y="84" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".7">lead_id</text>
+
+      <path d="M 446 262 C 500 262, 512 130, 552 118" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#ar3)"/>
+      <text x="512" y="238" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".7">client_id</text>
+
+      <rect x="740" y="60" width="134" height="76" rx="4" fill="none" stroke="#a86a1c" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="807" y="86" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#a86a1c">exactly one</text>
+      <text x="807" y="102" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#a86a1c">parent set</text>
+      <text x="807" y="120" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#a86a1c" opacity=".8">CHECK constraint</text>
+      <line x1="706" y1="98" x2="734" y2="98" stroke="#a86a1c" stroke-width="1.2" stroke-dasharray="3 3"/>
+
+      <!-- push tables -->
+      <rect x="500" y="348" width="380" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1" opacity=".55"/>
+      <text x="690" y="373" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".72">push_subscriptions · notification_log · login_attempts</text>
+    </svg>
+    <figcaption>
+      One follow-up hangs off <em>either</em> a lead or a client, never both and never neither —
+      enforced in the database by the <code>activities_one_parent</code> constraint. When a lead
+      converts, <code>/convert</code> moves its follow-ups from <code>lead_id</code> to
+      <code>client_id</code> before deleting the lead, so the history survives the cascade.
+    </figcaption>
+  </figure>
+
+  <div class="note warn">
+    <div class="note-title">Why the table is called “activities”, not “lead_activities”</div>
+    <p>
+      Because it holds follow-ups for clients too. The database used to call leads
+      <code>sites</code> — a fossil from when the app was a site-survey tool called SiteTrack —
+      and that mismatch between the screen and the schema caused steady confusion until the whole
+      data layer was renamed in August 2026.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ DEPLOYMENT ══════════════════ -->
+<section>
+  <div class="label">06 — Deployment</div>
+  <h2>Two pipelines that do not know about each other</h2>
+  <p class="lede">
+    This is the second thing that catches people out. Pushing to git deploys the website. It does
+    <strong>not</strong> deploy the backend.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 900 260" role="img" aria-label="Git push deploys only the frontend to Vercel. The Supabase CLI deploys Edge Functions separately. Database migrations are run by hand in the SQL editor. Three separate paths from one repository.">
+      <defs>
+        <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="26" y="94" width="150" height="72" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="101" y="124" text-anchor="middle" font-family="Archivo, sans-serif" font-size="14" font-weight="600" fill="currentColor">your repo</text>
+      <text x="101" y="144" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">pwt-sales</text>
+
+      <!-- lane 1 -->
+      <line x1="182" y1="112" x2="392" y2="48" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar4)"/>
+      <text x="212" y="70" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">git push</text>
+      <text x="212" y="86" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".62">automatic</text>
+      <rect x="400" y="20" width="230" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="515" y="44" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="currentColor">Vercel · static site</text>
+      <text x="515" y="62" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">index.html, sw.js, images</text>
+
+      <!-- lane 2 -->
+      <line x1="182" y1="130" x2="392" y2="130" stroke="#0d7d8c" stroke-width="2" marker-end="url(#ar4)" color="#0d7d8c"/>
+      <text x="212" y="122" font-family="IBM Plex Mono, monospace" font-size="11" fill="#0d7d8c">supabase functions deploy</text>
+      <text x="212" y="150" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#0d7d8c" opacity=".8">manual · never automatic</text>
+      <rect x="400" y="102" width="230" height="56" rx="4" fill="none" stroke="#0d7d8c" stroke-width="2"/>
+      <text x="515" y="126" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#0d7d8c">Supabase · Edge Functions</text>
+      <text x="515" y="144" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#0d7d8c" opacity=".8">all 11, deploy together</text>
+
+      <!-- lane 3 -->
+      <line x1="182" y1="150" x2="392" y2="212" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar4)"/>
+      <text x="212" y="196" font-family="IBM Plex Mono, monospace" font-size="11" fill="currentColor">paste into SQL editor</text>
+      <text x="212" y="212" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="currentColor" opacity=".62">by hand · no runner</text>
+      <rect x="400" y="184" width="230" height="56" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="515" y="208" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="currentColor">Supabase · PostgreSQL</text>
+      <text x="515" y="226" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor" opacity=".6">migrations/*.sql</text>
+
+      <rect x="666" y="94" width="208" height="72" rx="4" fill="none" stroke="#a86a1c" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="770" y="120" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#a86a1c">order matters</text>
+      <text x="770" y="138" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#a86a1c" opacity=".85">database → functions</text>
+      <text x="770" y="153" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#a86a1c" opacity=".85">→ frontend</text>
+    </svg>
+    <figcaption>
+      Three destinations, three separate actions, all from one repository. Nothing watches the repo
+      on the Supabase side — a function only changes when you run the deploy command yourself.
+    </figcaption>
+  </figure>
+
+  <div class="note danger">
+    <div class="note-title">The failure this causes</div>
+    <p>
+      Change a function, push to git, and the website updates while the backend stays on the old
+      code. If the frontend now calls an endpoint that hasn't been deployed, the app breaks for
+      everyone until you run the Supabase deploy. When both must change, deploy the database
+      first, then the functions, then push the frontend.
+    </p>
+  </div>
+
+  <h3>Scheduled work</h3>
+  <p>
+    One job runs without anyone touching it: <code>pg_cron</code> inside PostgreSQL calls
+    <code>/notify</code> every hour, which finds leads due within twelve hours and sends a push
+    notification to the engineer who owns them. A second job clears the notification log nightly.
+    Neither involves Vercel.
+  </p>
+</section>
+
+<!-- ══════════════════ SECURITY ══════════════════ -->
+<section>
+  <div class="label">07 — How access is controlled</div>
+  <h2>Three layers, all server-side</h2>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-tag">Layer 1 · the function</div>
+      <h3>Session and ownership</h3>
+      <p>
+        Every protected endpoint validates the bearer token, then filters by owner: an engineer
+        sees only their own records; an admin sees all. Mutations re-check ownership before
+        writing, and reject with <code>403</code>.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-tag">Layer 2 · the database</div>
+      <h3>Row Level Security</h3>
+      <p>
+        Every table carries a <code>service_role_only</code> policy. Even with a valid Supabase
+        API key, a direct request to the database returns nothing — only the service-role key
+        held inside the Edge Functions can read a row.
+      </p>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="note-title">Layer 3 · the browser never holds a database key</div>
+    <p>
+      There is no Supabase client library in the frontend and no API key in the bundle. The only
+      credential the browser ever holds is its own session token, which is useless anywhere except
+      these eleven endpoints. That is why the hard-coded <code>FUNCTIONS_BASE</code> URL is safe
+      to have in plain sight.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ ORPHANS ══════════════════ -->
+<section>
+  <div class="label">08 — Attached but unused</div>
+  <h2>Things wired up that nothing talks to</h2>
+  <p class="lede">
+    Worth knowing about, because their existence is what makes people believe the system is
+    bigger than it is.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Resource</th><th>Where</th><th>Status</th><th>Why it exists</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ep"><code>neon-carmine-cushion</code></td>
+          <td>Vercel Marketplace</td>
+          <td><span class="pill warn">orphaned</span></td>
+          <td>A Neon Postgres database — the original backend before the move to Supabase. Nothing has read it since May. May still hold pre-migration data.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>PWT CRM</code></td>
+          <td>Supabase, Frankfurt</td>
+          <td><span class="pill warn">unused</span></td>
+          <td>A second Supabase project on the same account. The app has never pointed at it.</td>
+        </tr>
+        <tr>
+          <td class="ep"><code>lib/</code></td>
+          <td>Repository</td>
+          <td><span class="pill mute">mostly dead</span></td>
+          <td>Node helpers for the deleted <code>api/</code> layer. Only <code>db.js</code> is still used, by a password-hashing script.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note danger">
+    <div class="note-title">The thing to fix first</div>
+    <p>
+      The Supabase project runs on the Free plan, which includes <strong>no database backups at
+      all</strong>. Nothing else on this page can lose your data; that can. Either move to the Pro
+      plan for scheduled backups, or export the tables to CSV on a regular schedule.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <span>PWT Sales Tracker · System Map</span>
+  <span>Verified against production 29 Aug 2026</span>
+</footer>
+
 </div>
 
-</div><!-- /container -->
-
-<div style="text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 12px;">
-  PWT International — Sales Tracker Architecture Reference
-</div>
-
-<script>
-function showSection(id) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  window.scrollTo({ top: document.querySelector('.nav').offsetTop, behavior: 'smooth' });
-}
-</script>
 </body>
 </html>

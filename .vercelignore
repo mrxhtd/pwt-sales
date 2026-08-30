@@ -14,10 +14,13 @@ supabase/
 scripts/
 SECURITY.md
 
-# Internal code-review reports — keep in the repo but never serve publicly
+# Internal engineering docs — keep in the repo but never serve publicly.
+# architecture.html details the schema, RLS posture and infrastructure; it was
+# reachable at /architecture.html until 29 Aug 2026.
 code-review-findings.html
 critical-fixes-report.html
 remaining-fixes-report.html
+architecture.html
 
 # Local env / git
 .env*
