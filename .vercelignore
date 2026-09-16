@@ -21,6 +21,7 @@ code-review-findings.html
 critical-fixes-report.html
 remaining-fixes-report.html
 architecture.html
+docs/
 
 # Local env / git
 .env*
