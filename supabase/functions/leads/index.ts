@@ -20,10 +20,21 @@ function rowToLead(r: any) {
     nextAction: r.next_action || '',
     dueDate: r.due_date || '',
     notes: r.notes || '',
+    annualCost: r.annual_cost == null ? '' : Number(r.annual_cost),
     createdAt: r.created_at || '',
     engineerId: r.engineer_id || '',
     engineerName: r.engineers?.full_name || '',
   };
+}
+
+const MAX_ANNUAL_COST = 999_999_999_999.99; // NUMERIC(14,2)
+
+// '' / null clears the value. Returns undefined for anything invalid.
+function parseAnnualCost(v: unknown): number | null | undefined {
+  if (v === '' || v === null) return null;
+  const n = typeof v === 'number' ? v : Number(String(v).trim());
+  if (!Number.isFinite(n) || n < 0 || n > MAX_ANNUAL_COST) return undefined;
+  return Math.round(n * 100) / 100;
 }
 
 const VALID_STATUSES = [
@@ -50,7 +61,7 @@ Deno.serve(async (req: Request) => {
     if (req.method === 'GET') {
       let query = supabase
         .from('leads')
-        .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, created_at, engineer_id, engineers(full_name)')
+        .select('id, name, contact, phone, equipment, specs, location, status, next_action, due_date, notes, annual_cost, created_at, engineer_id, engineers(full_name)')
         .order('updated_at', { ascending: false });
 
       if (!isAdmin) {
@@ -73,6 +84,15 @@ Deno.serve(async (req: Request) => {
 
       if (s.status && !VALID_STATUSES.includes(s.status)) {
         return json({ error: 'Invalid status' }, 400, cors);
+      }
+
+      // Only touch annual_cost when the client sent it, so older callers that
+      // don't know the field can't wipe a stored value.
+      const costFields: Record<string, number | null> = {};
+      if ('annualCost' in s) {
+        const cost = parseAnnualCost(s.annualCost);
+        if (cost === undefined) return json({ error: 'Invalid annual cost' }, 400, cors);
+        costFields.annual_cost = cost;
       }
 
       // Check if record exists — separate insert vs update
@@ -100,6 +120,7 @@ Deno.serve(async (req: Request) => {
             next_action: clamp(s.nextAction),
             due_date: s.dueDate || '',
             notes: clamp(s.notes, 5000),
+            ...costFields,
             updated_at: new Date().toISOString(),
           })
           .eq('id', s.id);
@@ -121,6 +142,7 @@ Deno.serve(async (req: Request) => {
             next_action: clamp(s.nextAction),
             due_date: s.dueDate || '',
             notes: clamp(s.notes, 5000),
+            ...costFields,
             engineer_id: engineerId,
             updated_at: new Date().toISOString(),
           });

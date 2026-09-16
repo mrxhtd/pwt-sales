@@ -1964,6 +1964,10 @@
         <label>Due Date</label>
         <input type="date" id="e_dueDate">
       </div>
+      <div class="form-field">
+        <label>Total Annual Cost (EGP)</label>
+        <input type="number" id="e_annualCost" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+      </div>
       <div class="form-field field-full">
         <label>Next Action</label>
         <input type="text" id="e_nextAction">
@@ -3315,6 +3319,7 @@ async function processAI() {
       nextAction: parsed.nextAction || '',
       dueDate: parsed.dueDate || '',
       notes: parsed.notes || '',
+      annualCost: '',
     };
 
     renderPreview(pendingEntry);
@@ -3380,6 +3385,10 @@ function renderPreview(entry) {
       <div class="pf-label">Due Date</div>
       <input class="pf-input" type="date" id="pv_dueDate" value="${esc(entry.dueDate || '')}">
     </div>
+    <div class="preview-field">
+      <div class="pf-label">Total Annual Cost (EGP)</div>
+      <input class="pf-input" type="number" id="pv_annualCost" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${esc(entry.annualCost ?? '')}">
+    </div>
     ${tf('pv_nextAction', 'Next Action', entry.nextAction, true)}
     ${tf('pv_notes', 'Notes', entry.notes, true)}
   `;
@@ -3400,7 +3409,9 @@ async function confirmAdd() {
     dueDate:    document.getElementById('pv_dueDate')?.value ?? pendingEntry.dueDate,
     nextAction: document.getElementById('pv_nextAction')?.value ?? pendingEntry.nextAction,
     notes:      document.getElementById('pv_notes')?.value ?? pendingEntry.notes,
+    annualCost: readAnnualCost('pv_annualCost'),
   };
+  if (entry.annualCost === undefined) { showToast('Enter a valid annual cost', 'error'); return; }
   pendingEntry = null;
   const btn = document.getElementById('confirmAddBtn');
   if (btn) { btn.classList.add('is-loading'); btn.disabled = true; }
@@ -3435,7 +3446,17 @@ function openEdit(id) {
   document.getElementById('e_dueDate').value = s.dueDate || '';
   document.getElementById('e_nextAction').value = s.nextAction || '';
   document.getElementById('e_notes').value = s.notes || '';
+  document.getElementById('e_annualCost').value = s.annualCost ?? '';
   document.getElementById('editModal').classList.add('open');
+}
+
+// '' → '' (not set), valid → number, invalid → undefined.
+function readAnnualCost(inputId) {
+  const el = document.getElementById(inputId);
+  const raw = el ? el.value.trim() : '';
+  if (raw === '') return el && el.validity.badInput ? undefined : '';
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : undefined;
 }
 
 async function saveEdit() {
@@ -3456,7 +3477,9 @@ async function saveEdit() {
     dueDate: document.getElementById('e_dueDate').value,
     nextAction: document.getElementById('e_nextAction').value,
     notes: document.getElementById('e_notes').value,
+    annualCost: readAnnualCost('e_annualCost'),
   };
+  if (updated.annualCost === undefined) { showToast('Enter a valid annual cost', 'error'); return; }
   if (btn) { btn.classList.add('is-loading'); btn.disabled = true; }
   try {
     await saveSite(updated);
@@ -3793,6 +3816,12 @@ function showDetailView(id) {
           <div class="detail-card-label">Due Date</div>
           <div class="detail-card-value${s.dueDate ? '' : ' empty'}">
             ${s.dueDate ? `<span class="due-date ${dueCls}">${formatDate(s.dueDate)}</span>` : 'Not set'}
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-card-label">Total Annual Cost</div>
+          <div class="detail-card-value${s.annualCost !== '' && s.annualCost != null ? '' : ' empty'}">
+            ${s.annualCost !== '' && s.annualCost != null ? `${fmtMoney(s.annualCost)} EGP` : 'Not set'}
           </div>
         </div>
       </div>
