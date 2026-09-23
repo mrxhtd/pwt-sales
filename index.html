@@ -3274,7 +3274,32 @@ function showClientSkeletons() {
     '<tr><td colspan="7" style="padding:0;border:none"><div class="skel skel-row"></div><div class="skel skel-row"></div><div class="skel skel-row"></div></td></tr>';
 }
 
+// The chart cards are tall; without a placeholder of the same size the
+// engineer list renders at the top and is shoved down when the charts arrive.
+// [canvas height, legend rows] per card, in the order they are drawn. Card
+// chrome (title, subtitle, padding) is 78px; each legend row adds 19px.
+const TEAM_CHART_SHAPES = [
+  [220, 1], [220, 0], [220, 0], [220, 0],
+  [240, 1], [220, 0], [260, 2], [240, 2],
+];
+
+function teamChartSkeletonHTML() {
+  return `
+    <div class="stats-row" style="margin-bottom:12px">
+      <div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+      ${TEAM_CHART_SHAPES.map(([h, rows]) => `<div class="skel" style="height:${h + 78 + rows * 19}px;border-radius:var(--radius-lg,12px)"></div>`).join('')}
+    </div>`;
+}
+
+function showTeamChartSkeletons() {
+  const wrap = document.getElementById('teamCharts');
+  if (wrap && !wrap.dataset.drawn) wrap.innerHTML = teamChartSkeletonHTML();
+}
+
 function showEngineerSkeletons() {
+  showTeamChartSkeletons();
   document.getElementById('engineerStatsRow').innerHTML =
     '<div class="skel skel-stat"></div><div class="skel skel-stat"></div><div class="skel skel-stat"></div>';
   document.getElementById('engineerRowCount').textContent = '';
@@ -5006,6 +5031,32 @@ function setTeamPeriod(period) {
 // back to a period the admin already looked at costs no wait at all.
 const teamStatsCache = new Map();
 const teamStatsInFlight = new Map();
+const TEAM_STATS_STORE = 'pwt_team_stats';
+
+// Keep the last answer per period on the device, so reopening the app draws
+// yesterday's charts at once and quietly replaces them with today's.
+function rememberTeamStats(qs, data) {
+  teamStatsCache.set(qs, data);
+  try {
+    const store = JSON.parse(localStorage.getItem(TEAM_STATS_STORE) || '{}');
+    store[qs] = { data, savedAt: Date.now() };
+    localStorage.setItem(TEAM_STATS_STORE, JSON.stringify(store));
+  } catch (err) { /* private mode or full storage — the charts still work */ }
+}
+
+function recallTeamStats(qs) {
+  if (teamStatsCache.has(qs)) return teamStatsCache.get(qs);
+  try {
+    const store = JSON.parse(localStorage.getItem(TEAM_STATS_STORE) || '{}');
+    const hit = store[qs];
+    // A week old is stale enough that showing it would mislead.
+    if (hit && Date.now() - hit.savedAt < 7 * 24 * 60 * 60 * 1000) {
+      teamStatsCache.set(qs, hit.data);
+      return hit.data;
+    }
+  } catch (err) { /* ignore unreadable storage */ }
+  return null;
+}
 
 function currentTeamQuery() {
   const includeAdmins = document.getElementById('teamIncludeAdmins')?.checked !== false;
@@ -5019,13 +5070,13 @@ async function loadTeamStats() {
   renderTeamPeriodPills();
   const qs = currentTeamQuery();
 
-  const cached = teamStatsCache.get(qs);
+  const cached = recallTeamStats(qs);
   if (cached) {
     teamStats = cached;
     await loadChartLibrary().catch(() => {});
     drawTeamCharts(cached);
   } else {
-    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Loading charts...</div>';
+    showTeamChartSkeletons();
   }
 
   // One request per query at a time, however often the tab is reopened. A
@@ -5056,7 +5107,7 @@ function warmTeamCharts() {
     if (teamStatsCache.has(qs) || teamStatsInFlight.has(qs)) return;
     const job = fetch(FUNCTIONS_BASE + '/stats' + qs, { headers: authHeaders() })
       .then(res => (res.ok ? res.json() : null))
-      .then(data => { if (data) teamStatsCache.set(qs, data); })
+      .then(data => { if (data) rememberTeamStats(qs, data); })
       .catch(() => {})
       .finally(() => teamStatsInFlight.delete(qs));
     teamStatsInFlight.set(qs, job);
@@ -5076,7 +5127,7 @@ async function fetchTeamStats(qs, wrap) {
     if (!res.ok) throw new Error(data.error === 'setup_required'
       ? 'Charts need the annual cost column — run migrations/lead_annual_cost.sql'
       : (data.error || 'Could not load the charts'));
-    teamStatsCache.set(qs, data);
+    rememberTeamStats(qs, data);
     // A slow answer for a period the admin has already clicked away from must
     // not replace the charts they are looking at now.
     if (qs !== currentTeamQuery()) return;
@@ -5137,6 +5188,7 @@ function drawTeamCharts(d) {
   if (!wrap) return;
   teamChartObjects.forEach(c => c.destroy());
   teamChartObjects = [];
+  wrap.dataset.drawn = '1';
 
   if (!d.engineers.length) {
     wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No engineers to compare yet</div>';
