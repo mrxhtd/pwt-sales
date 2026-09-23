@@ -144,9 +144,14 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // A plain UPDATE, not an upsert: an upsert is sent as INSERT ... ON
+      // CONFLICT, and Postgres checks NOT NULL on the row it would insert, so
+      // editing an engineer without typing a new password failed on the
+      // password column before the conflict clause was ever reached.
       const { error } = await supabase
         .from('engineers')
-        .upsert(record, { onConflict: 'id' });
+        .update(record)
+        .eq('id', id);
       if (error) throw error;
       return json({ ok: true, id }, 200, cors);
     }

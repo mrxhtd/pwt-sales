@@ -6,6 +6,7 @@ import bcrypt from 'npm:bcryptjs@2.4.3';
 // ─── RATE LIMITING (in-memory, per instance) ─────────
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 7;
+const MIN_PASSWORD = 6;
 const WINDOW_MS = 15 * 60 * 1000;
 
 function isRateLimited(key: string): boolean {
@@ -66,6 +67,62 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
+
+    // ─── CHANGE OWN PASSWORD (POST action) ───────────────
+    // Anyone signed in can change their own password; admins use the
+    // engineers function to reset someone else's.
+    if (body?.action === 'change-password') {
+      const session = await getSession(req);
+      if (!session) return json({ error: 'Unauthorized' }, 401, cors);
+
+      const current = body?.currentPassword || '';
+      const next = body?.newPassword || '';
+
+      if (!current || !next) return json({ error: 'Both passwords are required' }, 400, cors);
+      if (next.length < MIN_PASSWORD) {
+        return json({ error: `New password must be at least ${MIN_PASSWORD} characters` }, 400, cors);
+      }
+      if (next.length > 200 || current.length > 200) {
+        return json({ error: 'Input too long' }, 400, cors);
+      }
+
+      // Throttle guessing of the current password, same as login.
+      const pwKey = 'pw:' + session.engineerId;
+      if (isRateLimited(pwKey)) {
+        return json({ error: 'Too many attempts. Try again in 15 minutes.' }, 429, cors);
+      }
+
+      const supabasePw = getSupabase();
+      const { data: me } = await supabasePw
+        .from('engineers').select('id, password').eq('id', session.engineerId).single();
+      if (!me) return json({ error: 'Account not found' }, 404, cors);
+
+      if (!(await bcrypt.compare(current, me.password))) {
+        return json({ error: 'Current password is wrong' }, 401, cors);
+      }
+      if (await bcrypt.compare(next, me.password)) {
+        return json({ error: 'That is already your password' }, 400, cors);
+      }
+
+      clearRateLimit(pwKey);
+
+      const { error: updateErr } = await supabasePw
+        .from('engineers')
+        .update({ password: await bcrypt.hash(next, 10), updated_at: new Date().toISOString() })
+        .eq('id', session.engineerId);
+      if (updateErr) throw updateErr;
+
+      // Sign out this account's other devices — the old password may be known
+      // to whoever the engineer is changing it away from. The caller's own
+      // session survives so they are not kicked out mid-change.
+      const authHeader = req.headers.get('authorization') || '';
+      const myToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      await supabasePw.from('sessions').delete()
+        .eq('engineer_id', session.engineerId).neq('token', myToken);
+
+      return json({ ok: true }, 200, cors);
+    }
+
     const username = (body?.username || '').trim().toLowerCase();
     const password = body?.password || '';
 
