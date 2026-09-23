@@ -110,8 +110,10 @@ Deno.serve(async (req: Request) => {
       }
       if (e.password) {
         // Password validation
-        if (e.password.length < 12) {
-          return json({ error: 'Password must be at least 12 characters' }, 400, cors);
+        // 6 is the company's chosen minimum (asked for on 2026-09-23). Short
+        // passwords lean on the login throttle in migrations/login_attempts.sql.
+        if (e.password.length < 6) {
+          return json({ error: 'Password must be at least 6 characters' }, 400, cors);
         }
         if (e.password.length > 200) {
           return json({ error: 'Password too long' }, 400, cors);

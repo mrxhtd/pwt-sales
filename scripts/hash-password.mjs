@@ -39,8 +39,8 @@ if (!password) {
   process.exit(1);
 }
 
-if (password.length < 12) {
-  console.error('Refusing: choose a password of at least 12 characters.');
+if (password.length < 6) {
+  console.error('Refusing: choose a password of at least 6 characters.');
   process.exit(1);
 }
 
