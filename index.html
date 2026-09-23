@@ -4019,6 +4019,7 @@ function renderQuotations(quotations) {
         <strong style="font-family:'DM Mono',monospace">Quotation #${pad5(q.number)}</strong>
         <span style="font-size:11px;color:var(--text-muted)">${formatDate(q.issuedOn)}${q.engineerName ? ' · ' + esc(q.engineerName) : ''} · Engineer ${pad2(q.engineerCode)}</span>
         <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px;margin-left:auto" onclick="addQuotationVersion('${q.id}', this)">New version</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px;color:var(--red,#e05c5c)" onclick="deleteQuotation('${q.id}', ${q.number}, ${q.versions.length}, this)">Delete</button>
       </div>
       ${q.versions.map(v => quotationVersionHTML(v)).join('')}
     </div>
@@ -4160,6 +4161,28 @@ async function addQuotationVersion(quotationId, btn) {
   if (!data) return;
   showToast('Version ' + pad2(data.version.version) + ' created', 'success');
   loadQuotations(_quotationParent.id, _quotationParent.kind);
+}
+
+async function deleteQuotation(id, number, versionCount, btn) {
+  const versions = versionCount === 1 ? 'its barcode' : `all ${versionCount} of its barcodes`;
+  if (!confirm(`Delete quotation #${pad5(number)} and ${versions}? This can't be undone, and the number is never reused.`)) return;
+  if (btn?.disabled) return;
+  if (btn) { btn.disabled = true; btn.classList.add('is-loading'); }
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/quotations?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (res.status === 401) { showLogin(); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not delete');
+    showToast('Quotation deleted', 'success');
+    loadQuotations(_quotationParent.id, _quotationParent.kind);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); }
+  }
 }
 
 async function saveDriveLink(versionId, btn) {

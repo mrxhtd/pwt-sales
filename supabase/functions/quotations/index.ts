@@ -221,6 +221,24 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, quotation: full ? rowToQuotation(full) : null }, 200, cors);
     }
 
+    if (req.method === 'DELETE') {
+      const url = new URL(req.url);
+      const id = url.searchParams.get('id');
+      if (!id) return json({ error: 'Missing id' }, 400, cors);
+
+      const { data: q } = await supabase
+        .from('quotations').select('id, engineer_id').eq('id', id).single();
+      if (!q) return json({ error: 'Quotation not found' }, 404, cors);
+      if (!isAdmin && q.engineer_id !== engineerId) return json({ error: 'Forbidden' }, 403, cors);
+
+      // Versions go with it (ON DELETE CASCADE). The quotation number itself is
+      // never handed out again: it came from a sequence that only moves forward,
+      // so a deleted number simply leaves a gap.
+      const { error } = await supabase.from('quotations').delete().eq('id', id);
+      if (error) throw error;
+      return json({ ok: true }, 200, cors);
+    }
+
     return json({ error: 'Method not allowed' }, 405, cors);
   } catch (err) {
     console.error('quotations function error:', err);
