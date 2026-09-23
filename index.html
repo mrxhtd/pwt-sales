@@ -1801,6 +1801,16 @@
 <!-- ENGINEERS SECTION (admin only) -->
 <section id="engineersSection" style="display:none" class="admin-only">
   <div class="stats-row" id="engineerStatsRow"></div>
+
+  <!-- TEAM PERFORMANCE CHARTS (admin only) -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Period</span>
+    <div class="filter-pills" id="teamPeriodPills"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-left:auto;cursor:pointer">
+      <input type="checkbox" id="teamIncludeAdmins" checked onchange="loadTeamStats()"> Include admins
+    </label>
+  </div>
+  <div id="teamCharts" style="margin-bottom:24px"></div>
   <div class="controls">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -4990,6 +5000,7 @@ async function loadEngineers() {
     engineers = data.engineers || [];
     renderEngineerStats();
     renderEngineerTable();
+    loadTeamStats();
   } catch (err) {
     console.error(err);
   }
@@ -5038,6 +5049,229 @@ function renderEngineerTable() {
       </td>
     </tr>
   `).join('');
+}
+
+// ─── TEAM PERFORMANCE CHARTS (admin) ────────────────────
+// Every number comes from the stats function; the browser only draws.
+let teamPeriod = 'quarter';
+let teamStats = null;
+let teamChartObjects = [];
+let _chartLibPromise = null;
+
+const TEAM_PERIODS = [
+  ['month', 'This month'], ['quarter', 'Last 3 months'],
+  ['year', 'This year'], ['all', 'All time'],
+];
+
+// Chart.js is 200KB and only admins see it, so it loads on first use.
+function loadChartLibrary() {
+  if (typeof Chart === 'function') return Promise.resolve();
+  if (!_chartLibPromise) {
+    _chartLibPromise = new Promise((resolve, reject) => {
+      const tag = document.createElement('script');
+      tag.src = '/vendor/chart.umd.min.js';
+      tag.onload = resolve;
+      tag.onerror = () => { _chartLibPromise = null; reject(new Error('Could not load the chart library')); };
+      document.head.appendChild(tag);
+    });
+  }
+  return _chartLibPromise;
+}
+
+function renderTeamPeriodPills() {
+  const el = document.getElementById('teamPeriodPills');
+  if (!el) return;
+  el.innerHTML = TEAM_PERIODS.map(([v, label]) =>
+    `<button class="pill${teamPeriod === v ? ' active' : ''}" onclick="setTeamPeriod('${v}')">${label}</button>`
+  ).join('');
+}
+
+function setTeamPeriod(period) {
+  teamPeriod = period;
+  renderTeamPeriodPills();
+  loadTeamStats();
+}
+
+async function loadTeamStats() {
+  if (currentEngineer?.role !== 'admin') return;
+  const wrap = document.getElementById('teamCharts');
+  if (!wrap) return;
+  renderTeamPeriodPills();
+  wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Loading charts...</div>';
+  const includeAdmins = document.getElementById('teamIncludeAdmins')?.checked !== false;
+  try {
+    const qs = '?period=' + teamPeriod + '&includeAdmins=' + (includeAdmins ? '1' : '0');
+    const [res] = await Promise.all([
+      fetch(FUNCTIONS_BASE + '/stats' + qs, { headers: authHeaders() }),
+      loadChartLibrary(),
+    ]);
+    if (res.status === 401) { showLogin(); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error === 'setup_required'
+      ? 'Charts need the annual cost column — run migrations/lead_annual_cost.sql'
+      : (data.error || 'Could not load the charts'));
+    teamStats = data;
+    drawTeamCharts(data);
+  } catch (err) {
+    wrap.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${esc(err.message)}</div>`;
+  }
+}
+
+function chartPalette() {
+  const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+  return {
+    dark,
+    blue: dark ? '#3987e5' : '#2a78d6',
+    orange: dark ? '#d95926' : '#eb6834',
+    grid: dark ? '#2c2c2a' : '#e1e0d9',
+    muted: '#898781',
+    surface: dark ? '#141a24' : '#ffffff',
+    // Pipeline: prospects get one hue light to dark, then won and lost.
+    pipeline: ['#b5d4f4', '#85b7eb', '#378add', '#185fa5', dark ? '#199e70' : '#1baf7a', dark ? '#5f5e5a' : '#b4b2a9', dark ? '#3a3a38' : '#d3d1c7'],
+    series: dark
+      ? ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
+      : ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
+    dashes: [[], [6, 4], [2, 3], [10, 3, 2, 3], [4, 4], [8, 3], [1, 3], [12, 4]],
+  };
+}
+
+function fmtShortMoney(v) {
+  const n = Number(v) || 0;
+  if (n >= 1e6) return (Math.round(n / 1e5) / 10) + 'M';
+  if (n >= 1e3) return Math.round(n / 1e3) + 'K';
+  return String(Math.round(n));
+}
+
+function teamCardHTML(id, title, subtitle, legend, height) {
+  return `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg,12px);padding:14px 16px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:2px">${title}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${subtitle}</div>
+      ${legend || ''}
+      <div style="position:relative;height:${height}px"><canvas id="${id}"></canvas></div>
+    </div>`;
+}
+
+function legendHTML(items) {
+  return '<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text-muted);margin-bottom:8px">' +
+    items.map(([color, label, dash]) => dash
+      ? `<span style="display:flex;align-items:center;gap:4px"><svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="${color}" stroke-width="2" stroke-dasharray="${dash.join(' ')}"/></svg>${esc(label)}</span>`
+      : `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${color}"></span>${esc(label)}</span>`
+    ).join('') + '</div>';
+}
+
+function drawTeamCharts(d) {
+  const wrap = document.getElementById('teamCharts');
+  if (!wrap) return;
+  teamChartObjects.forEach(c => c.destroy());
+  teamChartObjects = [];
+
+  if (!d.engineers.length) {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No engineers to compare yet</div>';
+    return;
+  }
+
+  const p = chartPalette();
+  const names = d.engineers.map(e => e.name || 'Unnamed');
+  const periodLabel = (TEAM_PERIODS.find(([v]) => v === d.period) || [, 'Period'])[1].toLowerCase();
+
+  // Weekly activity keeps one colour per engineer, so cap it at 8 lines.
+  const totals = d.weekly.map(row => row.reduce((a, b) => a + b, 0));
+  const topIdx = names.map((_, i) => i).sort((a, b) => totals[b] - totals[a]).slice(0, 8);
+
+  wrap.innerHTML = `
+    <div class="stats-row" style="margin-bottom:12px">
+      <div class="stat-card"><div class="stat-label">Annual cost, all leads</div><div class="stat-val">${fmtShortMoney(d.money.totalAll)} EGP</div></div>
+      <div class="stat-card"><div class="stat-label">Annual cost, Closed Won</div><div class="stat-val" style="color:var(--green,#1baf7a)">${fmtShortMoney(d.money.totalWon)} EGP</div></div>
+      <div class="stat-card"><div class="stat-label">Won ÷ all</div><div class="stat-val">${d.money.totalAll ? Math.round(d.money.totalWon / d.money.totalAll * 100) : 0}%</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+      ${teamCardHTML('tcCalls', 'Calls and visits', 'Follow ups logged · ' + periodLabel, legendHTML([[p.blue, 'Calls'], [p.orange, 'Visits']]), 220)}
+      ${teamCardHTML('tcLeads', 'New leads', 'Leads added · ' + periodLabel, '', 220)}
+      ${teamCardHTML('tcWin', 'Win rate', 'Closed Won ÷ (Closed Won + Lost) · ' + periodLabel, '', 220)}
+      ${teamCardHTML('tcConv', 'Converted clients', 'Leads turned into clients · ' + periodLabel, '', 220)}
+      ${teamCardHTML('tcMoney', 'Money per engineer', 'Total annual cost on leads · ' + periodLabel, legendHTML([[p.pipeline[1], 'All leads'], [p.blue, 'Closed Won']]), 240)}
+      ${teamCardHTML('tcOverdue', 'Overdue follow ups', 'Past their due date · right now', '', 220)}
+      ${teamCardHTML('tcPipeline', 'Pipeline by status', "Where each engineer's leads stand · right now", legendHTML(d.pipelineStatuses.map((s, i) => [p.pipeline[i], s])), 260)}
+      ${teamCardHTML('tcWeekly', 'Weekly activity', 'Calls + visits per week · last 12 weeks' + (topIdx.length < names.length ? ' · busiest 8' : ''), legendHTML(topIdx.map((i, n) => [p.series[n % p.series.length], names[i], p.dashes[n % p.dashes.length]])), 240)}
+    </div>`;
+
+  const bar = extra => Object.assign({ borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 24 }, extra);
+  const base = extra => Object.assign({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: p.muted, autoSkip: false, maxRotation: 30 } },
+      y: { beginAtZero: true, grid: { color: p.grid }, border: { display: false }, ticks: { color: p.muted, precision: 0 } },
+    },
+  }, extra || {});
+
+  const make = (id, config) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    teamChartObjects.push(new Chart(el, config));
+  };
+
+  make('tcCalls', { type: 'bar', data: { labels: names, datasets: [
+    bar({ label: 'Calls', data: d.calls, backgroundColor: p.blue }),
+    bar({ label: 'Visits', data: d.visits, backgroundColor: p.orange }),
+  ] }, options: base({ datasets: { bar: { categoryPercentage: 0.6, barPercentage: 0.9 } } }) });
+
+  make('tcLeads', { type: 'bar', data: { labels: names, datasets: [bar({ label: 'New leads', data: d.newLeads, backgroundColor: p.blue })] }, options: base() });
+
+  make('tcWin', { type: 'bar', data: { labels: names, datasets: [{
+    label: 'Win rate', data: d.winRate.map(v => v ?? 0), backgroundColor: p.blue,
+    borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: 'left', maxBarThickness: 22,
+  }] }, options: base({
+    indexAxis: 'y',
+    scales: {
+      x: { beginAtZero: true, max: 100, grid: { color: p.grid }, border: { display: false }, ticks: { color: p.muted, callback: v => v + '%' } },
+      y: { grid: { display: false }, border: { display: false }, ticks: { color: p.muted } },
+    },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c =>
+      d.winRate[c.dataIndex] === null ? 'No closed leads yet' : d.winRate[c.dataIndex] + '% (' + d.won[c.dataIndex] + ' won, ' + d.lost[c.dataIndex] + ' lost)' } } },
+  }) });
+
+  make('tcConv', { type: 'bar', data: { labels: names, datasets: [bar({ label: 'Converted clients', data: d.converted, backgroundColor: p.blue })] }, options: base() });
+
+  make('tcMoney', { type: 'bar', data: { labels: names, datasets: [
+    bar({ label: 'All leads', data: d.money.all, backgroundColor: p.pipeline[1] }),
+    bar({ label: 'Closed Won', data: d.money.won, backgroundColor: p.blue }),
+  ] }, options: base({
+    datasets: { bar: { categoryPercentage: 0.6, barPercentage: 0.9 } },
+    scales: {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: p.muted, autoSkip: false, maxRotation: 30 } },
+      y: { beginAtZero: true, grid: { color: p.grid }, border: { display: false }, ticks: { color: p.muted, callback: v => fmtShortMoney(v) } },
+    },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw) + ' EGP' } } },
+  }) });
+
+  make('tcOverdue', { type: 'bar', data: { labels: names, datasets: [bar({ label: 'Overdue follow ups', data: d.overdue, backgroundColor: p.orange })] }, options: base() });
+
+  make('tcPipeline', { type: 'bar', data: { labels: names, datasets: d.pipelineStatuses.map((s, i) => ({
+    label: s, data: d.pipeline[s], backgroundColor: p.pipeline[i],
+    borderColor: p.surface, borderWidth: { right: 2 }, borderSkipped: false, maxBarThickness: 24,
+  })) }, options: base({
+    indexAxis: 'y',
+    scales: {
+      x: { stacked: true, beginAtZero: true, grid: { color: p.grid }, border: { display: false }, ticks: { color: p.muted, precision: 0 } },
+      y: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: p.muted } },
+    },
+    plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
+  }) });
+
+  make('tcWeekly', { type: 'line', data: { labels: d.weeks, datasets: topIdx.map((idx, n) => ({
+    label: names[idx], data: d.weekly[idx],
+    borderColor: p.series[n % p.series.length], borderDash: p.dashes[n % p.dashes.length],
+    borderWidth: 2, pointRadius: 0, pointHoverRadius: 5,
+    pointBackgroundColor: p.series[n % p.series.length], pointBorderColor: p.surface, pointBorderWidth: 2, tension: 0.3,
+  })) }, options: base({
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: { grid: { display: false }, border: { display: false }, ticks: { color: p.muted, maxRotation: 0, autoSkip: true } },
+      y: { beginAtZero: true, grid: { color: p.grid }, border: { display: false }, ticks: { color: p.muted, precision: 0 } },
+    },
+  }) });
 }
 
 function openAddEngineerModal() {
