@@ -10,6 +10,9 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- Draws the quotation barcodes. Vendored (not a CDN) so it is same-origin
+     under the CSP and stays in the offline cache for field use. -->
+<script defer src="/vendor/jsbarcode.code128.min.js"></script>
 <script>
   // Set theme before first paint to avoid flash
   (function() {
@@ -1814,6 +1817,7 @@
     <table>
       <thead>
         <tr>
+          <th>No.</th>
           <th>Name</th>
           <th>Username</th>
           <th>Role</th>
@@ -3846,11 +3850,23 @@ function showDetailView(id) {
       </div>
       <div id="followUpsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
     </div>
+
+    <div class="detail-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="detail-section-title" style="margin-bottom:0">Quotations</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="newQuotation('${s.id}', 'lead', this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Quotation
+        </button>
+      </div>
+      <div id="quotationsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
+    </div>
   `;
 
   document.getElementById('detailPage').classList.add('active');
   window.scrollTo(0, 0);
   loadFollowUps(s.id);
+  loadQuotations(s.id, 'lead');
 }
 
 async function loadFollowUps(id, kind = 'lead') {
@@ -3945,6 +3961,204 @@ async function saveFollowUp() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ─── QUOTATION BARCODES ─────────────────────────────────
+// Barcode layout (17 digits, no separators):
+//   engineer(2) location(2) date YYMMDD(6) number(5) version(2)
+// The server owns every digit; the app only draws what it is given.
+let _quotationParent = { id: '', kind: 'lead' };
+
+const pad2 = n => String(n).padStart(2, '0');
+const pad5 = n => String(n).padStart(5, '0');
+
+async function loadQuotations(id, kind = 'lead') {
+  _quotationParent = { id, kind };
+  const list = document.getElementById('quotationsList');
+  if (!list) return;
+  try {
+    const param = kind === 'client' ? 'clientId' : 'leadId';
+    const res = await fetch(FUNCTIONS_BASE + '/quotations?' + param + '=' + encodeURIComponent(id), { headers: authHeaders() });
+    if (res.status === 401) { showLogin(); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (data.error === 'setup_required') {
+        console.error('Quotation tables are not set up. Run migrations/quotations.sql in the Supabase SQL Editor.');
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Quotations are not set up yet</div>';
+        return;
+      }
+      throw new Error(data.error || 'Could not load quotations');
+    }
+    renderQuotations(data.quotations || []);
+  } catch (err) {
+    list.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${esc(err.message)}</div>`;
+  }
+}
+
+function renderQuotations(quotations) {
+  const list = document.getElementById('quotationsList');
+  if (!list) return;
+  if (quotations.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No quotations yet</div>';
+    return;
+  }
+
+  list.innerHTML = quotations.map(q => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <strong style="font-family:'DM Mono',monospace">Quotation #${pad5(q.number)}</strong>
+        <span style="font-size:11px;color:var(--text-muted)">${formatDate(q.issuedOn)}${q.engineerName ? ' · ' + esc(q.engineerName) : ''} · Engineer ${pad2(q.engineerCode)}</span>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px;margin-left:auto" onclick="addQuotationVersion('${q.id}', this)">New version</button>
+      </div>
+      ${q.versions.map(v => quotationVersionHTML(v)).join('')}
+    </div>
+  `).join('');
+
+  drawBarcodes();
+}
+
+function quotationVersionHTML(v) {
+  return `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="badge badge-qp" style="font-size:11px;padding:3px 10px">Version ${pad2(v.version)}</span>
+        <span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace">${formatDateTime(v.createdAt)}</span>
+        ${v.note ? `<span style="font-size:11px;color:var(--text-muted)">· ${esc(v.note)}</span>` : ''}
+      </div>
+      <div style="background:#fff;border-radius:6px;padding:8px;display:inline-block;max-width:100%">
+        <svg class="quotation-barcode" data-code="${esc(v.barcode)}" style="display:block;max-width:100%"></svg>
+        <div class="quotation-barcode-fallback" style="display:none;font-family:'DM Mono',monospace;color:#000;font-size:13px;padding:4px 8px">${esc(v.barcode)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="copyBarcodeImage('${esc(v.barcode)}', this)">Copy barcode</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="copyBarcodeNumber('${esc(v.barcode)}')">Copy number</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="downloadBarcode('${esc(v.barcode)}')">Download PNG</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">
+        <input type="url" id="drive_${esc(v.id)}" value="${esc(v.driveUrl)}" placeholder="https://drive.google.com/..."
+          style="flex:1;min-width:180px;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="saveDriveLink('${esc(v.id)}', this)">Save link</button>
+        ${v.driveUrl ? `<a class="btn btn-ghost" style="font-size:11px;padding:5px 12px" href="${esc(v.driveUrl)}" target="_blank" rel="noopener">Open</a>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function drawBarcodes() {
+  document.querySelectorAll('.quotation-barcode').forEach(el => {
+    const code = el.dataset.code || '';
+    if (typeof JsBarcode !== 'function') {
+      el.style.display = 'none';
+      const fb = el.parentElement?.querySelector('.quotation-barcode-fallback');
+      if (fb) fb.style.display = 'block';
+      return;
+    }
+    try {
+      JsBarcode(el, code, barcodeOptions(1));
+    } catch (err) {
+      console.error('barcode draw failed', err);
+    }
+  });
+}
+
+function barcodeOptions(scale) {
+  return {
+    format: 'CODE128', displayValue: true, font: 'monospace',
+    width: 2 * scale, height: 56 * scale, fontSize: 14 * scale,
+    textMargin: 2 * scale, margin: 8 * scale,
+    background: '#ffffff', lineColor: '#000000',
+  };
+}
+
+// A canvas at 3x so the pasted image stays sharp in a printed document.
+function barcodeCanvas(code) {
+  const canvas = document.createElement('canvas');
+  JsBarcode(canvas, code, barcodeOptions(3));
+  return canvas;
+}
+
+function barcodeUnavailable() {
+  showToast('Barcode image needs an internet connection — use Copy number', 'error');
+}
+
+async function copyBarcodeImage(code, btn) {
+  if (typeof JsBarcode !== 'function') return barcodeUnavailable();
+  try {
+    const canvas = barcodeCanvas(code);
+    // Safari only accepts a ClipboardItem built synchronously from a promise.
+    const item = new ClipboardItem({ 'image/png': new Promise(resolve => canvas.toBlob(resolve, 'image/png')) });
+    await navigator.clipboard.write([item]);
+    showToast('Barcode copied — paste it into the quotation', 'success');
+    if (btn) { const t = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = t; }, 1500); }
+  } catch (err) {
+    console.error(err);
+    showToast('Could not copy the image — use Download PNG', 'error');
+  }
+}
+
+function copyBarcodeNumber(code) {
+  navigator.clipboard.writeText(code)
+    .then(() => showToast('Number copied', 'success'))
+    .catch(() => showToast('Could not copy', 'error'));
+}
+
+function downloadBarcode(code) {
+  if (typeof JsBarcode !== 'function') return barcodeUnavailable();
+  barcodeCanvas(code).toBlob(blob => {
+    if (!blob) { showToast('Could not create the image', 'error'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = code + '.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/png');
+}
+
+async function postQuotation(body, btn) {
+  if (btn?.disabled) return null;
+  if (btn) { btn.disabled = true; btn.classList.add('is-loading'); }
+  try {
+    const res = await fetch(FUNCTIONS_BASE + '/quotations', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    if (res.status === 401) { showLogin(); return null; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error === 'setup_required'
+      ? 'Quotations are not set up yet' : (data.error || 'Request failed'));
+    return data;
+  } catch (err) {
+    showToast(err.message, 'error');
+    return null;
+  } finally {
+    if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); }
+  }
+}
+
+async function newQuotation(id, kind, btn) {
+  const body = kind === 'client' ? { clientId: id } : { leadId: id };
+  const data = await postQuotation(body, btn);
+  if (!data) return;
+  showToast(data.duplicate ? 'Quotation already created' : 'Quotation created', 'success');
+  loadQuotations(id, kind);
+}
+
+async function addQuotationVersion(quotationId, btn) {
+  const data = await postQuotation({ action: 'version', quotationId }, btn);
+  if (!data) return;
+  showToast('Version ' + pad2(data.version.version) + ' created', 'success');
+  loadQuotations(_quotationParent.id, _quotationParent.kind);
+}
+
+async function saveDriveLink(versionId, btn) {
+  const input = document.getElementById('drive_' + versionId);
+  if (!input) return;
+  const data = await postQuotation({ action: 'link', versionId, driveUrl: input.value.trim() }, btn);
+  if (!data) return;
+  showToast(data.driveUrl ? 'Drive link saved' : 'Drive link removed', 'success');
+  loadQuotations(_quotationParent.id, _quotationParent.kind);
 }
 
 // ─── CLIENTS ────────────────────────────────────────────
@@ -4304,7 +4518,20 @@ function buildCustomerDetailHTML(c) {
       </div>
       <div id="followUpsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
     </div>
+
+    <div class="detail-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="detail-section-title" style="margin-bottom:0">Quotations</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:6px 14px" onclick="newQuotation('${c.id}', 'client', this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Quotation
+        </button>
+      </div>
+      <div id="quotationsList"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>
+    </div>
   `;
+
+  loadQuotations(c.id, 'client');
 }
 
 /* ============ GENERATE QUOTE (full PWT proposal document) ============ */
@@ -5024,6 +5251,7 @@ function renderEngineerTable() {
 
   document.getElementById('engineerTableBody').innerHTML = filtered.map(e => `
     <tr onclick="viewEngineer('${e.id}')" style="cursor:pointer">
+      <td><span style="font-family:'DM Mono',monospace;font-size:12px">${e.engineerCode ? pad2(e.engineerCode) : '—'}</span></td>
       <td><strong>${esc(e.fullName)}</strong></td>
       <td><span style="font-family:'DM Mono',monospace;font-size:12px">${esc(e.username)}</span></td>
       <td><span class="badge ${e.role === 'admin' ? 'badge-hp' : 'badge-qp'}" style="font-size:11px;padding:3px 10px;">${e.role}</span></td>
@@ -5202,6 +5430,7 @@ function buildEngineerDetailHTML(e, leads, clients, totalLowStock) {
         <div class="detail-title">${esc(e.fullName || 'Unnamed Engineer')}</div>
         <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <span class="badge ${e.role === 'admin' ? 'badge-hp' : 'badge-qp'}" style="font-size:12px; padding:5px 14px;">${esc(e.role)}</span>
+          <span style="font-size:12px;color:var(--text-muted);font-family:'DM Mono',monospace">Engineer No. ${e.engineerCode ? pad2(e.engineerCode) : 'not set'}</span>
           <span class="badge ${e.isActive ? 'badge-active' : 'badge-stock'}" style="font-size:12px; padding:5px 14px;">${e.isActive ? 'Active' : 'Disabled'}</span>
           <span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">@${esc(e.username)}</span>
           ${e.createdAt ? `<span style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted);">Joined ${formatDateTime(e.createdAt)}</span>` : ''}

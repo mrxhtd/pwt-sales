@@ -1,6 +1,9 @@
-# Quotation Barcodes — Agreed Plan (not yet built)
+# Quotation Barcodes — Agreed Plan
 
-Agreed with the client on 2026-09-16. Nothing is implemented yet.
+Agreed with the client on 2026-09-16. Built on branch `feat/quotation-barcodes`
+(2026-09-23): migrations/quotations.sql, supabase/functions/quotations/, and the
+Quotations section in index.html. The barcode library is vendored at
+vendor/jsbarcode.code128.min.js so it works offline and under the CSP.
 
 ## Background
 
