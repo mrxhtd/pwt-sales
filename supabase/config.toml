@@ -27,8 +27,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.convert]
 verify_jwt = false
-[functions.extract]
-verify_jwt = false
 [functions.subscribe]
 verify_jwt = false
 [functions.notify]

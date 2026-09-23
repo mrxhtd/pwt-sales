@@ -664,159 +664,6 @@
   }
   .modal-close:hover { background: var(--red-dim); color: var(--red); }
 
-  /* AI CHAT INPUT */
-  .ai-input-area {
-    padding: 20px 24px;
-  }
-
-  .ai-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    font-family: 'DM Mono', monospace;
-  }
-
-  .ai-label span {
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: 1px solid rgba(168,85,247,0.32);
-    border-radius: 4px;
-    padding: 2px 7px;
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .ai-textarea {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    resize: none;
-    outline: none;
-    line-height: 1.6;
-    min-height: 100px;
-    transition: border-color 0.15s;
-  }
-  .ai-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  .ai-textarea::placeholder { color: var(--text-dim); }
-
-  .ai-hint {
-    margin-top: 8px;
-    font-size: 11.5px;
-    color: var(--text-muted);
-    line-height: 1.5;
-  }
-  .ai-hint strong { color: var(--text); }
-
-  .ai-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  /* ATTACHMENTS */
-  .attach-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-  }
-  .attach-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-muted);
-    padding: 8px 11px;
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .attach-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .attach-btn.recording {
-    border-color: var(--red);
-    color: var(--red);
-    background: var(--red-dim);
-  }
-  .attach-btn.recording .rec-dot {
-    display: inline-block;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--red);
-    animation: rec-pulse 1s ease-in-out infinite;
-  }
-  @keyframes rec-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.35; transform: scale(0.85); }
-  }
-
-  .media-tray {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
-  }
-  .media-chip {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px 10px;
-  }
-  .media-chip-thumb {
-    width: 42px; height: 42px;
-    border-radius: 6px;
-    object-fit: cover;
-    background: var(--bg);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent);
-    font-size: 18px;
-  }
-  .media-chip-info { flex: 1; min-width: 0; }
-  .media-chip-name {
-    font-size: 12.5px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-  }
-  .media-chip-meta {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .media-chip-remove {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-  }
-  .media-chip-remove:hover { color: var(--red); background: var(--red-dim); }
-
-  /* PREVIEW CARD */
   .preview-area {
     padding: 0 24px 20px;
   }
@@ -1005,23 +852,6 @@
   }
 
   /* LOADING SPINNER */
-  .loading-wrap {
-    padding: 28px 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--text-muted);
-    font-size: 13.5px;
-  }
-
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* EDIT MODAL FORM */
@@ -1422,25 +1252,21 @@
     .modal-backdrop.open .modal { transform: translateY(0); }
     .modal-header { padding: 16px 18px; }
     .modal-title { font-size: 16px; }
-    .ai-input-area { padding: 16px 18px; }
     .form-grid { padding: 16px 18px; }
     .modal-footer { padding: 14px 18px; }
     .preview-area { padding: 16px 18px; }
 
     /* iOS: 16px prevents auto-zoom on focus */
-    .ai-textarea,
     .form-field input,
     .form-field select,
     .form-field textarea { font-size: 16px; }
 
     /* Stack action rows, full-width buttons */
-    .ai-actions,
     .preview-actions,
     .modal-footer {
       flex-direction: column-reverse;
       gap: 8px;
     }
-    .ai-actions .btn,
     .preview-actions .btn,
     .modal-footer .btn {
       width: 100%;
@@ -1449,10 +1275,6 @@
       font-size: 14px;
       flex: 0 0 auto !important;
     }
-
-    /* Attach buttons: bigger tap targets */
-    .attach-btn { padding: 11px 13px; font-size: 13px; flex: 1 1 auto; justify-content: center; }
-    .attach-row { gap: 6px; }
 
     /* Filter pills: more breathing room */
     .pill { padding: 8px 14px; font-size: 12.5px; }
@@ -1468,8 +1290,6 @@
     .logo-text { font-size: 14px; }
     .name-banner { padding: 6px 12px 8px; font-size: 11px; letter-spacing: 1.5px; }
     .name-banner span { font-size: 13px; }
-    .attach-btn { padding: 10px 10px; font-size: 12px; }
-    .attach-btn svg { width: 13px; height: 13px; }
   }
 
   /* ─── CLIENT DETAIL PAGE ─────────────────────────────── */
@@ -1865,65 +1685,15 @@
       <button class="modal-close" onclick="closeModal('addModal')">✕</button>
     </div>
 
-    <!-- Input phase -->
-    <div id="inputPhase">
-      <div class="ai-input-area">
-        <div class="ai-label">
-          <span>AI</span>
-          Just describe the site naturally
-        </div>
-        <textarea class="ai-textarea" id="aiInput" placeholder="e.g. Al Nour Factory, Ahmed Sayed, 01001234567, 3 ton gas boiler, Cairo Shoubra, call him next week about the maintenance contract" rows="4"></textarea>
-        <div class="ai-hint">
-          <strong>Tip:</strong> Include site name, contact person, phone, equipment type and size, location, and what to do next. Arabic or English — doesn't matter.
-        </div>
-        <div class="attach-row">
-          <button class="attach-btn" id="recBtn" type="button" onclick="toggleRecording()">
-            <span class="rec-dot" style="display:none"></span>
-            <svg class="rec-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            <span id="recLabel">Record voice</span>
-          </button>
-          <button class="attach-btn" type="button" onclick="document.getElementById('cameraInput').click()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Take photo
-          </button>
-          <button class="attach-btn" type="button" onclick="document.getElementById('uploadInput').click()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload image
-          </button>
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageFile(event)">
-          <input type="file" id="uploadInput" accept="image/*" style="display:none" onchange="handleImageFile(event)">
-        </div>
-        <div class="media-tray" id="mediaTray"></div>
-        <div class="ai-actions">
-          <button class="btn btn-primary" onclick="processAI()" style="flex:1">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Extract Fields
-          </button>
-          <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Loading phase -->
-    <div id="loadingPhase" style="display:none">
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        Analyzing...
-      </div>
-    </div>
-
-    <!-- Preview phase -->
-    <div id="previewPhase" style="display:none">
-      <div class="preview-area">
-        <div class="preview-label">Extracted Fields</div>
-        <div class="preview-grid" id="previewGrid"></div>
-        <div class="preview-actions">
-          <button class="btn btn-primary" id="confirmAddBtn" onclick="confirmAdd()" style="flex:1">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Add to Tracker
-          </button>
-          <button class="btn btn-ghost" onclick="backToInput()">Edit Again</button>
-        </div>
+    <div class="preview-area">
+      <div class="preview-label">Lead details</div>
+      <div class="preview-grid" id="previewGrid"></div>
+      <div class="preview-actions">
+        <button class="btn btn-primary" id="confirmAddBtn" onclick="confirmAdd()" style="flex:1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Add Lead
+        </button>
+        <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
       </div>
     </div>
   </div>
@@ -3144,205 +2914,19 @@ function esc(s) {
 }
 
 // ─── ADD MODAL ──────────────────────────────────────────
-let attachedImage = null; // { mimeType, data, size, previewUrl }
-let attachedAudio = null; // { mimeType, data, size, durationMs }
-let mediaRecorder = null;
-let recordingStartMs = 0;
-let recordingTimer = null;
-
+// A plain manual form: the engineer types every field. (The old AI
+// extraction from text, photos and voice notes was removed on 2026-09-23
+// because the company does not want to pay per call for it.)
 function openAddModal() {
-  document.getElementById('aiInput').value = '';
-  removeImage();
-  removeAudio();
-  showPhase('inputPhase');
+  pendingEntry = {
+    id: uid(),
+    name: '', contact: '', phone: '', equipment: '', specs: '',
+    location: '', status: 'Potential Prospect',
+    nextAction: '', dueDate: '', notes: '', annualCost: '',
+  };
+  renderPreview(pendingEntry);
   document.getElementById('addModal').classList.add('open');
-  setTimeout(() => document.getElementById('aiInput').focus(), 200);
-}
-
-function showPhase(phase) {
-  ['inputPhase','loadingPhase','previewPhase'].forEach(p => {
-    document.getElementById(p).style.display = p === phase ? 'block' : 'none';
-  });
-}
-
-function backToInput() {
-  showPhase('inputPhase');
-}
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result.split(',')[1]);
-    r.onerror = reject;
-    r.readAsDataURL(blob);
-  });
-}
-
-function renderMediaTray() {
-  const tray = document.getElementById('mediaTray');
-  let html = '';
-  if (attachedImage) {
-    html += `<div class="media-chip">
-      <img class="media-chip-thumb" src="${attachedImage.previewUrl}" alt="">
-      <div class="media-chip-info">
-        <div class="media-chip-name">Image attached</div>
-        <div class="media-chip-meta">${attachedImage.mimeType} · ${Math.round(attachedImage.size/1024)} KB</div>
-      </div>
-      <button class="media-chip-remove" type="button" onclick="removeImage()">Remove</button>
-    </div>`;
-  }
-  if (attachedAudio) {
-    const secs = Math.max(1, Math.round(attachedAudio.durationMs / 1000));
-    html += `<div class="media-chip">
-      <div class="media-chip-thumb">🎙</div>
-      <div class="media-chip-info">
-        <div class="media-chip-name">Voice recording</div>
-        <div class="media-chip-meta">${secs}s · ${Math.round(attachedAudio.size/1024)} KB</div>
-      </div>
-      <button class="media-chip-remove" type="button" onclick="removeAudio()">Remove</button>
-    </div>`;
-  }
-  tray.innerHTML = html;
-}
-
-function removeImage() {
-  if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
-  attachedImage = null;
-  renderMediaTray();
-}
-function removeAudio() {
-  attachedAudio = null;
-  renderMediaTray();
-}
-
-async function handleImageFile(event) {
-  const file = event.target.files?.[0];
-  event.target.value = '';
-  if (!file) return;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const maxDim = 1600;
-    const ratio = Math.min(maxDim / bitmap.width, maxDim / bitmap.height, 1);
-    const w = Math.round(bitmap.width * ratio);
-    const h = Math.round(bitmap.height * ratio);
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
-    const data = await blobToBase64(blob);
-    if (attachedImage?.previewUrl) URL.revokeObjectURL(attachedImage.previewUrl);
-    attachedImage = {
-      mimeType: 'image/jpeg',
-      data,
-      size: blob.size,
-      previewUrl: URL.createObjectURL(blob),
-    };
-    renderMediaTray();
-  } catch (err) {
-    console.error(err);
-    showToast('Could not load image', 'error');
-  }
-}
-
-async function toggleRecording() {
-  const btn = document.getElementById('recBtn');
-  const label = document.getElementById('recLabel');
-  const dot = btn.querySelector('.rec-dot');
-  const icon = btn.querySelector('.rec-icon');
-
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    return;
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const chunks = [];
-    const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-               : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
-               : '';
-    mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-    const actualMime = mediaRecorder.mimeType || mime || 'audio/webm';
-    recordingStartMs = Date.now();
-    mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-    mediaRecorder.onstop = async () => {
-      const durationMs = Date.now() - recordingStartMs;
-      stream.getTracks().forEach(t => t.stop());
-      btn.classList.remove('recording');
-      dot.style.display = 'none';
-      icon.style.display = '';
-      label.textContent = 'Record voice';
-      clearInterval(recordingTimer);
-      mediaRecorder = null;
-      if (!chunks.length) return;
-      const blob = new Blob(chunks, { type: actualMime });
-      const data = await blobToBase64(blob);
-      attachedAudio = { mimeType: actualMime.split(';')[0], data, size: blob.size, durationMs };
-      renderMediaTray();
-    };
-    mediaRecorder.start();
-    btn.classList.add('recording');
-    dot.style.display = '';
-    icon.style.display = 'none';
-    const tick = () => {
-      const s = Math.floor((Date.now() - recordingStartMs) / 1000);
-      label.textContent = `Stop (${s}s)`;
-    };
-    tick();
-    recordingTimer = setInterval(tick, 250);
-    setTimeout(() => { if (mediaRecorder?.state === 'recording') mediaRecorder.stop(); }, 120000);
-  } catch (err) {
-    console.error(err);
-    showToast('Microphone permission denied', 'error');
-  }
-}
-
-async function processAI() {
-  const text = document.getElementById('aiInput').value.trim();
-  if (!text && !attachedImage && !attachedAudio) {
-    showToast('Add a description, photo, or voice note first', 'error');
-    return;
-  }
-
-  showPhase('loadingPhase');
-
-  try {
-    const payload = { text };
-    if (attachedImage) payload.image = { mimeType: attachedImage.mimeType, data: attachedImage.data };
-    if (attachedAudio) payload.audio = { mimeType: attachedAudio.mimeType, data: attachedAudio.data };
-    const res = await fetch(FUNCTIONS_BASE + '/extract', {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    const parsed = await res.json();
-
-    pendingEntry = {
-      id: uid(),
-      name: parsed.name || '',
-      contact: parsed.contact || '',
-      phone: parsed.phone || '',
-      equipment: parsed.equipment || '',
-      specs: parsed.specs || '',
-      location: parsed.location || '',
-      status: parsed.status || 'Potential Prospect',
-      nextAction: parsed.nextAction || '',
-      dueDate: parsed.dueDate || '',
-      notes: parsed.notes || '',
-      annualCost: '',
-    };
-
-    renderPreview(pendingEntry);
-    showPhase('previewPhase');
-  } catch (err) {
-    console.error(err);
-    showToast('AI failed — please try again', 'error');
-    showPhase('inputPhase');
-  }
+  setTimeout(() => document.getElementById('pv_name')?.focus(), 200);
 }
 
 const LOCATION_OPTIONS = ['Alexandria', 'Borg El Arab', 'Al Amryah', 'El sadat', 'October', 'North Coast', 'Obour', '10th Ramadan', 'Other'];
@@ -3374,7 +2958,7 @@ function renderPreview(entry) {
     `<option value="${v}"${cur === v ? ' selected' : ''}>${l}</option>`).join('');
 
   document.getElementById('previewGrid').innerHTML = `
-    ${tf('pv_name', 'Site Name', entry.name)}
+    ${tf('pv_name', 'Lead Name', entry.name)}
     ${tf('pv_contact', 'Contact', entry.contact)}
     ${tf('pv_phone', 'Phone', entry.phone)}
     <div class="preview-field">
@@ -3425,6 +3009,7 @@ async function confirmAdd() {
     notes:      document.getElementById('pv_notes')?.value ?? pendingEntry.notes,
     annualCost: readAnnualCost('pv_annualCost'),
   };
+  if (!(entry.name || '').trim()) { showToast('Enter a lead name', 'error'); document.getElementById('pv_name')?.focus(); return; }
   if (entry.annualCost === undefined) { showToast('Enter a valid annual cost', 'error'); return; }
   pendingEntry = null;
   const btn = document.getElementById('confirmAddBtn');
