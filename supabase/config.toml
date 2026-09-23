@@ -23,6 +23,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.engineers]
 verify_jwt = false
+[functions.stats]
+verify_jwt = false
 [functions.convert]
 verify_jwt = false
 [functions.extract]
