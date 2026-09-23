@@ -2735,6 +2735,7 @@ async function loadDataAfterLogin() {
     } else {
       handleRoute();
     }
+    warmTeamCharts();
   } catch (err) {
     console.error(err);
     showToast('Could not load data. Refresh to retry.', 'error');
@@ -4907,7 +4908,7 @@ async function loadEngineers() {
     engineers = data.engineers || [];
     renderEngineerStats();
     renderEngineerTable();
-    loadTeamStats();
+    if (activeTab === 'engineers') loadTeamStats();
   } catch (err) {
     console.error(err);
   }
@@ -5000,15 +5001,72 @@ function setTeamPeriod(period) {
   loadTeamStats();
 }
 
+// Answers already fetched this session, keyed by period + admin toggle. They
+// are redrawn instantly while a fresh copy loads in the background, so going
+// back to a period the admin already looked at costs no wait at all.
+const teamStatsCache = new Map();
+const teamStatsInFlight = new Map();
+
+function currentTeamQuery() {
+  const includeAdmins = document.getElementById('teamIncludeAdmins')?.checked !== false;
+  return '?period=' + teamPeriod + '&includeAdmins=' + (includeAdmins ? '1' : '0');
+}
+
 async function loadTeamStats() {
   if (currentEngineer?.role !== 'admin') return;
   const wrap = document.getElementById('teamCharts');
   if (!wrap) return;
   renderTeamPeriodPills();
-  wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Loading charts...</div>';
-  const includeAdmins = document.getElementById('teamIncludeAdmins')?.checked !== false;
+  const qs = currentTeamQuery();
+
+  const cached = teamStatsCache.get(qs);
+  if (cached) {
+    teamStats = cached;
+    await loadChartLibrary().catch(() => {});
+    drawTeamCharts(cached);
+  } else {
+    wrap.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Loading charts...</div>';
+  }
+
+  // One request per query at a time, however often the tab is reopened. A
+  // background warm-up counts as that request: wait for it, then draw.
+  if (teamStatsInFlight.has(qs)) {
+    await teamStatsInFlight.get(qs);
+    const fresh = teamStatsCache.get(qs);
+    if (fresh && qs === currentTeamQuery()) {
+      teamStats = fresh;
+      await loadChartLibrary().catch(() => {});
+      drawTeamCharts(fresh);
+    }
+    return;
+  }
+  const job = fetchTeamStats(qs, wrap).finally(() => teamStatsInFlight.delete(qs));
+  teamStatsInFlight.set(qs, job);
+  return job;
+}
+
+// Admins nearly always open the Team tab, so the chart library and the default
+// period are fetched quietly once the lead list is on screen. Opening the tab
+// then draws from the cache instead of waiting for the round trip.
+function warmTeamCharts() {
+  if (currentEngineer?.role !== 'admin') return;
+  const start = () => {
+    loadChartLibrary().catch(() => {});
+    const qs = '?period=' + teamPeriod + '&includeAdmins=1';
+    if (teamStatsCache.has(qs) || teamStatsInFlight.has(qs)) return;
+    const job = fetch(FUNCTIONS_BASE + '/stats' + qs, { headers: authHeaders() })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) teamStatsCache.set(qs, data); })
+      .catch(() => {})
+      .finally(() => teamStatsInFlight.delete(qs));
+    teamStatsInFlight.set(qs, job);
+  };
+  if (window.requestIdleCallback) requestIdleCallback(start, { timeout: 3000 });
+  else setTimeout(start, 800);
+}
+
+async function fetchTeamStats(qs, wrap) {
   try {
-    const qs = '?period=' + teamPeriod + '&includeAdmins=' + (includeAdmins ? '1' : '0');
     const [res] = await Promise.all([
       fetch(FUNCTIONS_BASE + '/stats' + qs, { headers: authHeaders() }),
       loadChartLibrary(),
@@ -5018,10 +5076,16 @@ async function loadTeamStats() {
     if (!res.ok) throw new Error(data.error === 'setup_required'
       ? 'Charts need the annual cost column — run migrations/lead_annual_cost.sql'
       : (data.error || 'Could not load the charts'));
+    teamStatsCache.set(qs, data);
+    // A slow answer for a period the admin has already clicked away from must
+    // not replace the charts they are looking at now.
+    if (qs !== currentTeamQuery()) return;
     teamStats = data;
     drawTeamCharts(data);
   } catch (err) {
-    wrap.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${esc(err.message)}</div>`;
+    if (!teamStatsCache.has(qs)) {
+      wrap.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${esc(err.message)}</div>`;
+    }
   }
 }
 

@@ -14,17 +14,36 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 }
 
 // PostgREST caps a plain select at 1000 rows, which would silently understate
-// every chart once the company passes that many leads or follow-ups.
+// every chart once the company passes that many leads or follow-ups. The first
+// page comes back with an exact row count, so any remaining pages are fetched
+// in parallel instead of one after another.
 const PAGE = 1000;
-async function fetchAll(supabase: any, table: string, columns: string): Promise<any[]> {
-  const rows: any[] = [];
-  for (let page = 0; ; page++) {
-    const { data, error } = await supabase
-      .from(table).select(columns).range(page * PAGE, page * PAGE + PAGE - 1);
-    if (error) throw error;
-    rows.push(...(data || []));
-    if (!data || data.length < PAGE) return rows;
+async function fetchAll(
+  supabase: any,
+  table: string,
+  columns: string,
+  since?: { column: string; from: string | null },
+): Promise<any[]> {
+  const page = (n: number) => {
+    let q = supabase.from(table).select(columns, n === 0 ? { count: 'exact' } : {})
+      .range(n * PAGE, n * PAGE + PAGE - 1);
+    if (since?.from) q = q.gte(since.column, since.from);
+    return q;
+  };
+
+  const { data, error, count } = await page(0);
+  if (error) throw error;
+  const rows: any[] = data || [];
+  if (rows.length < PAGE || !count || count <= PAGE) return rows;
+
+  const rest = await Promise.all(
+    Array.from({ length: Math.ceil(count / PAGE) - 1 }, (_, i) => page(i + 1)),
+  );
+  for (const r of rest) {
+    if (r.error) throw r.error;
+    rows.push(...(r.data || []));
   }
+  return rows;
 }
 
 Deno.serve(async (req: Request) => {
@@ -49,10 +68,19 @@ Deno.serve(async (req: Request) => {
     const from = periodStart(period, today);
     const weeks = weekBuckets(12, today);
 
+    // Only fetch what the charts can actually show: follow-ups older than both
+    // the period and the 12-week window can never appear, and neither can
+    // clients converted before the period. Leads are read in full because the
+    // pipeline and overdue charts are snapshots of everything open right now.
+    const activityFrom = from && from < weeks[0].start ? from : weeks[0].start;
+
     const [engineerRows, leads, activities, clients] = await Promise.all([
       fetchAll(supabase, 'engineers', 'id, full_name, role, is_active, engineer_code'),
       fetchAll(supabase, 'leads', 'id, engineer_id, status, created_at, due_date, annual_cost'),
-      fetchAll(supabase, 'activities', 'engineer_id, type, created_at'),
+      fetchAll(supabase, 'activities', 'engineer_id, type, created_at',
+        { column: 'created_at', from: period === 'all' ? null : activityFrom }),
+      // Clients are not date-filtered: one converted inside the period may have
+      // been created long before it, and that conversion still counts.
       fetchAll(supabase, 'clients', 'engineer_id, converted_at, created_at'),
     ]);
 
