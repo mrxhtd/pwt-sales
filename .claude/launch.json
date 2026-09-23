@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vercel", "dev", "--listen", "3456"],
       "port": 3456
+    },
+    {
+      "name": "pwt-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve", "--no-clipboard", "--listen", "3457"],
+      "port": 3457
     }
   ]
 }

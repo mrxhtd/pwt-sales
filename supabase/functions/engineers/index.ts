@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('engineers')
-        .select('id, username, full_name, role, is_active, created_at')
+        .select('id, username, full_name, role, is_active, created_at, engineer_code')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -44,6 +44,7 @@ Deno.serve(async (req: Request) => {
           role: e.role,
           isActive: e.is_active,
           createdAt: e.created_at,
+          engineerCode: e.engineer_code ?? null,
         })),
       }, 200, cors);
     }
@@ -116,6 +117,29 @@ Deno.serve(async (req: Request) => {
           return json({ error: 'Password too long' }, 400, cors);
         }
         record.password = await bcrypt.hash(e.password, 10);
+      }
+
+      if (!existing) {
+        // Two-digit barcode number, handed out in order and never reused — a
+        // disabled engineer keeps theirs so old barcodes stay readable. The
+        // unique index settles races, hence the retry.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data: highest } = await supabase
+            .from('engineers')
+            .select('engineer_code')
+            .not('engineer_code', 'is', null)
+            .order('engineer_code', { ascending: false })
+            .limit(1);
+          const next = ((highest?.[0]?.engineer_code as number) || 0) + 1;
+          if (next > 99) return json({ error: 'No engineer numbers left (01-99 all used)' }, 400, cors);
+
+          const { error: insertErr } = await supabase
+            .from('engineers')
+            .insert({ ...record, engineer_code: next });
+          if (!insertErr) return json({ ok: true, id, engineerCode: next }, 200, cors);
+          if (!String(insertErr.message || '').includes('duplicate key')) throw insertErr;
+          if (attempt === 2) throw insertErr;
+        }
       }
 
       const { error } = await supabase
