@@ -1005,6 +1005,21 @@
     justify-content: flex-end;
   }
 
+  .export-choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .export-choice:hover { border-color: var(--border-light); }
+  .export-choice input { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+  .export-choice strong { display: block; font-size: 14px; font-weight: 500; }
+  .export-count { font-size: 12px; color: var(--text-muted); }
+
   /* LOGIN OVERLAY */
   .login-overlay {
     position: fixed; inset: 0;
@@ -1537,7 +1552,7 @@
       <span class="btn-label" id="notifLabel">Notify</span>
     </button>
     <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
-    <button class="btn btn-ghost" id="exportBtn" onclick="exportExcel()" aria-label="Export CSV">
+    <button class="btn btn-ghost" id="exportBtn" onclick="openExportModal()" aria-label="Export CSV">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       <span class="btn-label">Export CSV</span>
     </button>
@@ -1714,6 +1729,38 @@
         </button>
         <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-backdrop" id="exportModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">Export to CSV</div>
+      <button class="modal-close" onclick="closeModal('exportModal')">&#10005;</button>
+    </div>
+    <div class="form-grid" style="grid-template-columns:1fr;gap:10px">
+      <label class="export-choice" for="exp_leads">
+        <input type="checkbox" id="exp_leads" checked onchange="updateExportSummary()">
+        <span>
+          <strong>Leads</strong>
+          <span class="export-count" id="exp_leads_count"></span>
+        </span>
+      </label>
+      <label class="export-choice" for="exp_clients">
+        <input type="checkbox" id="exp_clients" checked onchange="updateExportSummary()">
+        <span>
+          <strong>Clients</strong>
+          <span class="export-count" id="exp_clients_count"></span>
+        </span>
+      </label>
+      <div style="font-size:12px;color:var(--text-muted)" id="exp_note"></div>
+    </div>
+    <div class="modal-footer">
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" onclick="closeModal('exportModal')">Cancel</button>
+      <button class="btn btn-primary" id="exportGoBtn" onclick="runExport()">Export</button>
     </div>
   </div>
 </div>
@@ -3284,33 +3331,109 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── EXPORT EXCEL ────────────────────────────────────────
-function exportExcel() {
-  const headers = ['Site Name','Contact','Phone','Equipment','Specs','Location','Status','Next Action','Due Date','Notes'];
+// ─── EXPORT ─────────────────────────────────────────────
+// The button opens a chooser: leads, clients, or both. Whatever the list is
+// filtered to is what gets exported, so what you see is what you get.
+function visibleLeads() {
   const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  const filtered = sites.filter(s => {
+  return sites.filter(s => {
     const match = (s.name + s.contact + s.phone + s.equipment + s.location + s.nextAction + s.notes)
       .toLowerCase().includes(q);
     const statusMatch = filterStatus === 'All' || s.status === filterStatus;
     return match && statusMatch;
   });
-  const rows = filtered.map(s => [
-    s.name, s.contact, s.phone, s.equipment, formatSpecs(s.specs),
-    s.location, s.status, s.nextAction, s.dueDate, s.notes
-  ]);
+}
 
-  const csvRows = [headers, ...rows].map(r =>
-    r.map(cell => `"${(cell||'').toString().replace(/"/g,'""')}"`).join(',')
-  );
-  const csv = '\uFEFF' + csvRows.join('\n'); // BOM for Excel UTF-8
+function visibleClients() {
+  const q = (document.getElementById('clientSearchInput')?.value || '').toLowerCase();
+  return clients.filter(c => !q || (c.name + c.contact + c.phone + c.location).toLowerCase().includes(q));
+}
 
+function openExportModal() {
+  if (!requireAuth()) return;
+  document.getElementById('exp_leads').checked = true;
+  document.getElementById('exp_clients').checked = true;
+  updateExportSummary();
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function updateExportSummary() {
+  const leads = visibleLeads().length, allLeads = sites.length;
+  const cl = visibleClients().length, allClients = clients.length;
+  const count = (shown, total) => shown === total
+    ? `${shown} ${shown === 1 ? 'row' : 'rows'}`
+    : `${shown} of ${total} (filtered)`;
+  document.getElementById('exp_leads_count').textContent = count(leads, allLeads);
+  document.getElementById('exp_clients_count').textContent = count(cl, allClients);
+
+  const both = document.getElementById('exp_leads').checked && document.getElementById('exp_clients').checked;
+  const none = !document.getElementById('exp_leads').checked && !document.getElementById('exp_clients').checked;
+  document.getElementById('exp_note').textContent = none
+    ? 'Pick at least one.'
+    : both ? 'Two files will be downloaded, one for each.' : 'One file will be downloaded.';
+  document.getElementById('exportGoBtn').disabled = none;
+}
+
+function toCSV(headers, rows) {
+  const cell = v => `"${(v == null ? '' : v).toString().replace(/"/g, '""')}"`;
+  // The BOM is what makes Excel read Arabic names correctly.
+  return '\uFEFF' + [headers, ...rows].map(r => r.map(cell).join(',')).join('\n');
+}
+
+function downloadCSV(csv, name) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pwt_sales_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = name;
   a.click();
-  URL.revokeObjectURL(url);
-  showToast('CSV file downloaded', 'success');
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function leadsCSV() {
+  const isAdm = currentEngineer?.role === 'admin';
+  const headers = ['Lead Name', 'Contact', 'Phone', 'Equipment', 'Specs', 'Location', 'Status',
+    'Next Action', 'Due Date', 'Total Annual Cost (EGP)', 'Notes'];
+  if (isAdm) headers.push('Engineer');
+  const rows = visibleLeads().map(s => {
+    const row = [s.name, s.contact, s.phone, s.equipment, formatSpecs(s.specs), s.location, s.status,
+      s.nextAction, s.dueDate, (s.annualCost === '' || s.annualCost == null) ? '' : s.annualCost, s.notes];
+    if (isAdm) row.push(s.engineerName || '');
+    return row;
+  });
+  return toCSV(headers, rows);
+}
+
+function clientsCSV() {
+  const isAdm = currentEngineer?.role === 'admin';
+  const headers = ['Client Name', 'Contact', 'Phone', 'Location', 'Equipment', 'Specs',
+    'Products', 'Converted On', 'Notes'];
+  if (isAdm) headers.push('Engineer');
+  const rows = visibleClients().map(c => {
+    const row = [c.name, c.contact, c.phone, c.location, c.equipment, formatSpecs(c.specs),
+      c.productCount || 0, c.convertedAt ? c.convertedAt.slice(0, 10) : '', c.notes];
+    if (isAdm) row.push(c.engineerName || '');
+    return row;
+  });
+  return toCSV(headers, rows);
+}
+
+function runExport() {
+  const wantLeads = document.getElementById('exp_leads').checked;
+  const wantClients = document.getElementById('exp_clients').checked;
+  if (!wantLeads && !wantClients) { showToast('Pick leads, clients, or both', 'error'); return; }
+
+  const day = new Date().toISOString().slice(0, 10);
+  const done = [];
+  if (wantLeads) { downloadCSV(leadsCSV(), `pwt_leads_${day}.csv`); done.push('leads'); }
+  // A short gap: browsers drop the second file when two downloads fire at once.
+  if (wantClients) {
+    setTimeout(() => downloadCSV(clientsCSV(), `pwt_clients_${day}.csv`), wantLeads ? 600 : 0);
+    done.push('clients');
+  }
+
+  closeModal('exportModal');
+  showToast(done.length === 2 ? 'Leads and clients downloaded' : `${done[0] === 'leads' ? 'Leads' : 'Clients'} downloaded`, 'success');
 }
 
 // ─── TOAST ───────────────────────────────────────────────
