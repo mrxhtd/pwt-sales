@@ -634,7 +634,20 @@
     transform: translateY(20px);
     transition: transform 0.2s;
     overflow: hidden;
+    /* Never taller than the screen: a long lead form used to run off the
+       bottom, taking the Add Lead button with it. The body scrolls inside
+       instead, and the buttons stay put. */
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
   }
+  .modal-header, .modal-footer, .preview-actions { flex: 0 0 auto; }
+  .modal > .form-grid,
+  .modal > .preview-area { flex: 1 1 auto; min-height: 0; }
+  .modal > .form-grid { overflow-y: auto; }
+  .modal > .preview-area { display: flex; flex-direction: column; overflow: hidden; }
+  .modal > .preview-area > .preview-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .modal-backdrop.open .modal { transform: translateY(0); }
 
   .modal-header {
@@ -849,6 +862,8 @@
     display: flex;
     gap: 8px;
     margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
   }
 
   /* LOADING SPINNER */
@@ -1244,8 +1259,9 @@
     .modal {
       max-width: 100%;
       max-height: 92vh;
+      max-height: 92dvh;
       border-radius: 18px 18px 0 0;
-      overflow-y: auto;
+      overflow: hidden;
       transform: translateY(100%);
       padding-bottom: env(safe-area-inset-bottom);
     }
