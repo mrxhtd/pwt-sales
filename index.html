@@ -1801,7 +1801,8 @@
       </div>
       <div class="form-field">
         <label>Total Annual Cost (EGP)</label>
-        <input type="number" id="e_annualCost" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+        <input type="text" id="e_annualCost" inputmode="decimal" placeholder="0.00"
+          oninput="formatMoneyInput(this)" onblur="finishMoneyInput(this)">
       </div>
       <div class="form-field field-full">
         <label>Next Action</label>
@@ -3074,7 +3075,9 @@ function renderPreview(entry) {
     </div>
     <div class="preview-field">
       <div class="pf-label">Total Annual Cost (EGP)</div>
-      <input class="pf-input" type="number" id="pv_annualCost" min="0" step="0.01" inputmode="decimal" placeholder="0.00" value="${esc(entry.annualCost ?? '')}">
+      <input class="pf-input" type="text" id="pv_annualCost" inputmode="decimal" placeholder="0.00"
+        value="${esc(entry.annualCost === '' || entry.annualCost == null ? '' : fmtMoney(entry.annualCost))}"
+        oninput="formatMoneyInput(this)" onblur="finishMoneyInput(this)">
     </div>
     ${tf('pv_nextAction', 'Next Action', entry.nextAction, true)}
     ${tf('pv_notes', 'Notes', entry.notes, true)}
@@ -3134,15 +3137,55 @@ function openEdit(id) {
   document.getElementById('e_dueDate').value = s.dueDate || '';
   document.getElementById('e_nextAction').value = s.nextAction || '';
   document.getElementById('e_notes').value = s.notes || '';
-  document.getElementById('e_annualCost').value = s.annualCost ?? '';
+  document.getElementById('e_annualCost').value =
+    (s.annualCost === '' || s.annualCost == null) ? '' : fmtMoney(s.annualCost);
   document.getElementById('editModal').classList.add('open');
+}
+
+// Group the whole pounds with commas while the engineer types, keeping the
+// decimals exactly as typed so "1000.5" does not jump to "1,000.50" mid-entry.
+function groupThousands(digits) {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function formatMoneyInput(el) {
+  const before = el.value;
+  const caret = el.selectionStart ?? before.length;
+  const digitsBeforeCaret = (before.slice(0, caret).match(/\d/g) || []).length;
+
+  // Keep digits and the first dot only, and at most two decimals.
+  let raw = before.replace(/[^\d.]/g, '');
+  const firstDot = raw.indexOf('.');
+  if (firstDot !== -1) {
+    raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '').slice(0, 2);
+  }
+
+  const [whole = '', decimals] = raw.split('.');
+  const trimmed = whole.replace(/^0+(?=\d)/, '');
+  el.value = raw === '' ? '' :
+    groupThousands(trimmed) + (raw.includes('.') ? '.' + (decimals || '') : '');
+
+  // Put the caret back where the same digit still is, commas aside.
+  let seen = 0, pos = el.value.length;
+  for (let i = 0; i < el.value.length; i++) {
+    if (/\d/.test(el.value[i])) seen++;
+    if (seen === digitsBeforeCaret) { pos = i + 1; break; }
+  }
+  if (digitsBeforeCaret === 0) pos = 0;
+  el.setSelectionRange(pos, pos);
+}
+
+// On leaving the field, settle on the full form: 1000 → 1,000.00
+function finishMoneyInput(el) {
+  const n = Number((el.value || '').replace(/,/g, ''));
+  el.value = el.value.trim() === '' || !Number.isFinite(n) ? el.value.trim() : fmtMoney(n);
 }
 
 // '' → '' (not set), valid → number, invalid → undefined.
 function readAnnualCost(inputId) {
   const el = document.getElementById(inputId);
-  const raw = el ? el.value.trim() : '';
-  if (raw === '') return el && el.validity.badInput ? undefined : '';
+  const raw = el ? el.value.replace(/,/g, '').trim() : '';
+  if (raw === '') return '';
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : undefined;
 }

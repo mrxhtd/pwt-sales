@@ -1,7 +1,7 @@
 // PWT Sales - Service Worker (push notifications + offline app shell)
 
 // Bump CACHE_VERSION on each deploy to invalidate stale cached assets.
-const CACHE_VERSION = 'pwt-v6';
+const CACHE_VERSION = 'pwt-v7';
 const APP_SHELL = [
   '/',
   '/index.html',
