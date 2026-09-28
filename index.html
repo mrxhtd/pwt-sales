@@ -144,6 +144,37 @@
     gap: 10px;
   }
 
+  .header-menu-wrap { position: relative; display: none; }
+  .header-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 190px;
+    background: var(--card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 6px;
+    z-index: 300;
+    display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .header-menu.open { display: block; }
+  .header-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 11px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .header-menu button:hover { background: var(--surface); }
+  .header-menu button.danger { color: var(--red); }
+
   /* BUTTONS */
   .btn {
     display: inline-flex;
@@ -1323,6 +1354,11 @@
     .pill { padding: 8px 14px; font-size: 12.5px; }
   }
 
+  @media (max-width: 560px) {
+    .header-actions .hide-sm { display: none !important; }
+    .header-menu-wrap { display: block; }
+  }
+
   @media (max-width: 380px) {
     header { padding: 10px 10px; }
     .header-actions { gap: 4px; }
@@ -1559,12 +1595,12 @@
     <div class="logo-text">PWT <span>SALES</span></div>
   </a>
   <div class="header-actions">
-    <button class="btn btn-ghost" id="notifToggleBtn" onclick="toggleNotifications()" aria-label="Toggle notifications" title="Enable notifications">
+    <button class="btn btn-ghost hide-sm" id="notifToggleBtn" onclick="toggleNotifications()" aria-label="Toggle notifications" title="Enable notifications">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
       <span class="btn-label" id="notifLabel">Notify</span>
     </button>
-    <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
-    <button class="btn btn-ghost" id="exportBtn" onclick="openExportModal()" aria-label="Export CSV">
+    <button class="btn btn-ghost hide-sm" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle theme"></button>
+    <button class="btn btn-ghost hide-sm" id="exportBtn" onclick="openExportModal()" aria-label="Export CSV">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       <span class="btn-label">Export CSV</span>
     </button>
@@ -1580,12 +1616,26 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       <span class="btn-label">Add Engineer</span><span class="btn-label-mobile" style="display:none">Add</span>
     </button>
-    <button class="btn btn-ghost" onclick="openPasswordModal()" aria-label="Change password" title="Change password">
+    <button class="btn btn-ghost hide-sm" onclick="openPasswordModal()" aria-label="Change password" title="Change password">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </button>
-    <button class="btn btn-ghost" onclick="logout()" aria-label="Log out" title="Log out">
+    <button class="btn btn-ghost hide-sm" onclick="logout()" aria-label="Log out" title="Log out">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
     </button>
+
+    <!-- On phones the secondary actions live behind this one button -->
+    <div class="header-menu-wrap">
+      <button class="btn btn-ghost" id="headerMoreBtn" onclick="toggleHeaderMenu(event)" aria-label="More actions" aria-expanded="false" title="More">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+      <div class="header-menu" id="headerMenu">
+        <button onclick="runHeaderMenu(toggleNotifications)"><span id="menuNotifLabel">Notifications</span></button>
+        <button onclick="runHeaderMenu(toggleTheme)">Light / dark theme</button>
+        <button id="menuExportBtn" onclick="runHeaderMenu(openExportModal)">Export CSV</button>
+        <button onclick="runHeaderMenu(openPasswordModal)">Change password</button>
+        <button class="danger" onclick="runHeaderMenu(logout)">Log out</button>
+      </div>
+    </div>
   </div>
 </header>
 <div class="name-banner">Sales Representative — <span id="engineerName"></span></div>
@@ -3540,9 +3590,41 @@ async function logout() {
 }
 
 // ─── TAB SWITCHING ──────────────────────────────────────
+// ─── HEADER OVERFLOW MENU (phones) ──────────────────────
+function toggleHeaderMenu(event) {
+  event?.stopPropagation();
+  const menu = document.getElementById('headerMenu');
+  const open = menu.classList.toggle('open');
+  document.getElementById('headerMoreBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    // Mirror the notification button's own wording, whatever state it is in.
+    const label = document.getElementById('notifLabel')?.textContent || 'Notifications';
+    document.getElementById('menuNotifLabel').textContent =
+      label === 'Notify' ? 'Turn on notifications' : label;
+  }
+}
+
+function closeHeaderMenu() {
+  document.getElementById('headerMenu')?.classList.remove('open');
+  document.getElementById('headerMoreBtn')?.setAttribute('aria-expanded', 'false');
+}
+
+function runHeaderMenu(action) {
+  closeHeaderMenu();
+  action();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.header-menu-wrap')) closeHeaderMenu();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHeaderMenu(); });
+
 function updateHeaderButtons(tab) {
   document.getElementById('addSiteBtn').style.display = tab === 'leads' ? '' : 'none';
   document.getElementById('exportBtn').style.display = tab === 'leads' ? '' : 'none';
+  // Export only makes sense from the lists, and the menu mirrors that.
+  const menuExport = document.getElementById('menuExportBtn');
+  if (menuExport) menuExport.style.display = (tab === 'leads' || tab === 'clients') ? '' : 'none';
   document.getElementById('addClientBtn').style.display = tab === 'clients' ? '' : 'none';
   document.getElementById('addEngineerBtn').style.display = tab === 'engineers' ? '' : 'none';
 }
