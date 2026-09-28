@@ -15,6 +15,17 @@ Receipts and payments are **out of scope** for now.
 
 ## Barcode format
 
+Superseded on 2026-09-28: there is no barcode image any more, only a text code
+in the company's own document format, matching the surveys' SRV-… codes:
+
+    PRO-YYYYMMDD-LOCATION-ENGINEER-NUMBER      e.g. PRO-20260928-OCTO-001-32
+
+Location is the four-letter code (ALEX, BORG, AMRY, SADA, OCTO, NRTH, OBOR,
+RAMA, OTHR), the engineer number is three digits, the quotation number is not
+padded, and versions after the first add -V02, -V03 … See
+migrations/quotation_code_format.sql.
+
+The original barcode plan, kept for history, was:
 A 1D barcode (Code 128, drawn in the browser with JsBarcode from cdnjs) holding
 **17 digits, no dashes**. Every part is fixed-width and zero-padded:
 

@@ -122,9 +122,9 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!existing) {
-        // Two-digit barcode number, handed out in order and never reused — a
-        // disabled engineer keeps theirs so old barcodes stay readable. The
-        // unique index settles races, hence the retry.
+        // The engineer's number in every quotation code, handed out in order
+        // and never reused — a disabled engineer keeps theirs so old codes stay
+        // readable. The unique index settles races, hence the retry.
         for (let attempt = 0; attempt < 3; attempt++) {
           const { data: highest } = await supabase
             .from('engineers')
@@ -133,7 +133,7 @@ Deno.serve(async (req: Request) => {
             .order('engineer_code', { ascending: false })
             .limit(1);
           const next = ((highest?.[0]?.engineer_code as number) || 0) + 1;
-          if (next > 99) return json({ error: 'No engineer numbers left (01-99 all used)' }, 400, cors);
+          if (next > 999) return json({ error: 'No engineer numbers left (001-999 all used)' }, 400, cors);
 
           const { error: insertErr } = await supabase
             .from('engineers')

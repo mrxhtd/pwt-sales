@@ -1,7 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getSupabase } from '../_shared/db.ts';
 import { getSession } from '../_shared/auth.ts';
-import { buildBarcode, cairoToday, cleanDriveUrl, locationCode } from './barcode.ts';
+import { buildCode, cairoToday, cleanDriveUrl, locationAbbr } from './code.ts';
 
 function resolveParent(leadId: string | null, clientId: string | null) {
   if (leadId && clientId) return { error: 'Provide leadId or clientId, not both' };
@@ -24,7 +24,7 @@ function rowToQuotation(q: any) {
     engineerId: q.engineer_id,
     engineerName: q.engineers?.full_name || '',
     engineerCode: q.engineer_code,
-    locationCode: q.location_code,
+    location: q.location_abbr || '',
     issuedOn: q.issued_on,
     leadId: q.lead_id || '',
     clientId: q.client_id || '',
@@ -35,7 +35,7 @@ function rowToQuotation(q: any) {
       .map((v: any) => ({
         id: v.id,
         version: v.version,
-        barcode: v.barcode,
+        code: v.code,
         driveUrl: v.drive_url || '',
         note: v.note || '',
         createdAt: v.created_at,
@@ -44,8 +44,8 @@ function rowToQuotation(q: any) {
 }
 
 const SELECT_QUOTATION =
-  'id, number, engineer_id, engineer_code, location_code, issued_on, lead_id, client_id, created_at,' +
-  ' engineers(full_name), quotation_versions(id, version, barcode, drive_url, note, created_at)';
+  'id, number, engineer_id, engineer_code, location_abbr, issued_on, lead_id, client_id, created_at,' +
+  ' engineers(full_name), quotation_versions(id, version, code, drive_url, note, created_at)';
 
 Deno.serve(async (req: Request) => {
   const cors = getCorsHeaders(req);
@@ -133,7 +133,7 @@ Deno.serve(async (req: Request) => {
 
         const { data: q } = await supabase
           .from('quotations')
-          .select('id, number, engineer_id, engineer_code, location_code, issued_on')
+          .select('id, number, engineer_id, engineer_code, location_abbr, issued_on')
           .eq('id', quotationId)
           .single();
         if (!q) return json({ error: 'Quotation not found' }, 404, cors);
@@ -161,8 +161,8 @@ Deno.serve(async (req: Request) => {
       const found = await loadParent(parent);
       if (found.error) return json({ error: found.error }, found.status, cors);
 
-      const locCode = locationCode(found.row.location);
-      if (!locCode) {
+      const locAbbr = locationAbbr(found.row.location);
+      if (!locAbbr) {
         return json({
           error: parent.isLead
             ? 'Set a location on this lead before making a quotation'
@@ -170,7 +170,7 @@ Deno.serve(async (req: Request) => {
         }, 400, cors);
       }
 
-      // The engineer number is part of the barcode, so it must exist first.
+      // The engineer number is part of the code, so it must exist first.
       const { data: eng } = await supabase
         .from('engineers').select('engineer_code').eq('id', engineerId).single();
       const engCode = eng?.engineer_code as number | null | undefined;
@@ -200,17 +200,17 @@ Deno.serve(async (req: Request) => {
           id,
           engineer_id: engineerId,
           engineer_code: engCode,
-          location_code: locCode,
+          location_abbr: locAbbr,
           issued_on: today.iso,
           [parent.column!]: parent.id,
         })
-        .select('id, number, engineer_id, engineer_code, location_code, issued_on')
+        .select('id, number, engineer_id, engineer_code, location_abbr, issued_on')
         .single();
       if (insertErr) throw insertErr;
 
       const version = await insertVersion(supabase, inserted, 1, engineerId, body?.note);
       if ((version as any).error) {
-        // Never leave a quotation without its first barcode.
+        // Never leave a quotation without its first code.
         await supabase.from('quotations').delete().eq('id', id);
         return json({ error: (version as any).error }, (version as any).status, cors);
       }
@@ -254,7 +254,7 @@ Deno.serve(async (req: Request) => {
 // real guard against two racing requests creating the same version number.
 async function insertVersion(
   supabase: any,
-  q: { id: string; number: number; engineer_code: number; location_code: number; issued_on: string },
+  q: { id: string; number: number; engineer_code: number; location_abbr: string; issued_on: string },
   version: number,
   engineerId: string,
   rawNote: unknown,
@@ -266,11 +266,11 @@ async function insertVersion(
       id,
       quotation_id: q.id,
       version,
-      barcode: buildBarcode(q, version),
+      code: buildCode(q, version),
       note: String(rawNote ?? '').slice(0, 500),
       created_by: engineerId,
     })
-    .select('id, version, barcode, drive_url, note, created_at')
+    .select('id, version, code, drive_url, note, created_at')
     .single();
 
   if (error) {
@@ -284,7 +284,7 @@ async function insertVersion(
   return {
     id: data.id,
     version: data.version,
-    barcode: data.barcode,
+    code: data.code,
     driveUrl: data.drive_url || '',
     note: data.note || '',
     createdAt: data.created_at,

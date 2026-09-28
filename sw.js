@@ -1,7 +1,7 @@
 // PWT Sales - Service Worker (push notifications + offline app shell)
 
 // Bump CACHE_VERSION on each deploy to invalidate stale cached assets.
-const CACHE_VERSION = 'pwt-v8';
+const CACHE_VERSION = 'pwt-v9';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -9,7 +9,6 @@ const APP_SHELL = [
   '/favicon-32.png',
   '/apple-touch-icon.png',
   '/logoo.png',
-  '/vendor/jsbarcode.code128.min.js',
 ];
 
 self.addEventListener('install', (e) => {
